@@ -1,0 +1,17 @@
+# Per-business private data (each user fills their own; example* are committed demos)
+businesses/*
+!businesses/README.md
+!businesses/example
+!businesses/example/**
+!businesses/example-prelaunch
+!businesses/example-prelaunch/**
+# Secrets
+**/secrets.env
+# Runtime
+*.lock
+**/state/KILL
+
+# Runtime logs (per-business)
+**/logs/
+# Waitlist contains personal data - never commit, even for demos
+**/state/waitlist.jsonl

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<!--
+  카드뉴스 1080x1350 템플릿
+  - 플레이스홀더: {{제목}}, {{본문}}, {{페이지번호}}, {{배경이미지}}
+  - {{배경이미지}}: Higgsfield 등으로 생성한 배경 이미지 경로를 여기에 지정
+  - 렌더링: Aside 작업 playbooks/cardnews-render.task.md (브라우저 스크린샷, 1080x1350)
+  - 한글 폰트: Noto Sans KR 우선, 없으면 시스템 산세리프 폴백
+-->
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  .card {
+    width: 1080px;
+    height: 1350px;
+    position: relative;
+    overflow: hidden;
+    font-family: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    background: #111;
+    color: #fff;
+  }
+
+  /* 배경 이미지 영역: {{배경이미지}} 경로로 교체 */
+  .card .bg {
+    position: absolute;
+    inset: 0;
+    background-image: url("{{배경이미지}}");
+    background-size: cover;
+    background-position: center;
+  }
+
+  /* 가독성용 하단 그라데이션 */
+  .card .shade {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0) 55%);
+  }
+
+  .card .content {
+    position: absolute;
+    left: 80px;
+    right: 80px;
+    bottom: 120px;
+  }
+
+  .card .title {
+    font-size: 72px;
+    font-weight: 800;
+    line-height: 1.25;
+    word-break: keep-all;
+    margin-bottom: 32px;
+  }
+
+  .card .body {
+    font-size: 40px;
+    font-weight: 400;
+    line-height: 1.6;
+    word-break: keep-all;
+    color: #f0f0f0;
+  }
+
+  .card .page {
+    position: absolute;
+    top: 60px;
+    right: 80px;
+    font-size: 32px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.85);
+    letter-spacing: 2px;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="bg"></div>
+    <div class="shade"></div>
+    <div class="page">{{페이지번호}}</div>
+    <div class="content">
+      <div class="title">{{제목}}</div>
+      <div class="body">{{본문}}</div>
+    </div>
+  </div>
+</body>
+</html>

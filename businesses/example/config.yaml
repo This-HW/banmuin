@@ -1,0 +1,47 @@
+# > **가상 데이터**: 드라이런 데모용으로 만든 허구 정보입니다.
+# AI 마케팅 자동화 시스템 — 설정 (가상 사업체 "카페 온기" 드라이런용)
+# 비밀(API 키·토큰)은 여기에 넣지 않는다. secrets.env (Git 제외, Secure Vault 주입) 사용.
+# 정본 규칙: 예산 캡·게이트 임계값의 정본은 knowledge/08_승인기준.md. 여기는 미러.
+
+timezone: Asia/Seoul
+
+business:
+  slug: example
+  name: "카페 온기 (가상)"
+
+schedule:
+  main_routine: "30 6 * * *"      # 매일 06:30 — 수집→분석→제작→검수→API 채널 발행→리포트
+  naver_publish: "0 9 * * *"      # 매일 09:00 기동, 내부에서 09:00~11:00 균등 랜덤 지연 후 발행
+  weekly_calendar: "0 20 * * 0"   # 일요일 20:00 — 다음 주 content_calendar.md 생성
+
+channels:
+  naver_blog: { enabled: true,  max_per_day: 1, publish_window: "09:00-11:00" }
+  threads:    { enabled: true,  max_per_day: 2, api_limit_per_24h: 250 }
+  instagram:  { enabled: false, max_per_day: 1, api_limit_per_24h: 100 }
+  youtube:    { enabled: false, max_per_day: 1 }
+  meta_ads:   { enabled: false, mode: "draft_only" }  # draft_only | auto
+
+budgets:
+  meta_daily_cap_krw: 30000       # 미러. 정본: knowledge/08_승인기준.md
+  higgsfield_monthly_krw: 50000   # 미러
+
+customer_care:
+  mode: "draft_only"              # draft_only | auto_send
+
+repurchase:
+  d7_channel: null                # null | sms | alimtalk | dm
+
+quality_gate:
+  similarity_threshold: 0.80      # 미러. 정본: knowledge/08_승인기준.md
+  max_rework: 2                   # 2차 검수 수정 후 재검수 최대 횟수
+
+retry:
+  max_attempts: 3
+  backoff_minutes: [5, 15, 45]    # 지수 백오프
+
+retention:
+  logs_days: 90
+  assets_days: 90                  # 이후 assets/archive/ 로 압축 아카이브
+
+notifications:
+  telegram_chat_id: ""            # 값은 비워둠. 토큰은 secrets.env

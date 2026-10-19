@@ -1,0 +1,63 @@
+# AI 마케팅 자동화 시스템 — 설정
+# 비밀(API 키·토큰)은 여기에 넣지 않는다. businesses/<slug>/secrets.env (Git 제외, Secure Vault 주입) 사용.
+# 정본 규칙: 예산 캡·게이트 임계값의 정본은 knowledge/08_승인기준.md. 여기는 미러.
+
+timezone: Asia/Seoul
+
+schedule:
+  main_routine: "30 6 * * *"      # 매일 06:30 — 수집→분석→제작→검수→API 채널 발행→리포트
+  naver_publish: "0 9 * * *"      # 매일 09:00 기동, 내부에서 09:00~11:00 균등 랜덤 지연 후 발행
+  weekly_calendar: "0 20 * * 0"   # 일요일 20:00 — 다음 주 content_calendar.md 생성
+
+publishing:
+  require_approval: false         # false=자동발행(기본, 11.3 #1). true=대시보드 승인 필요.
+                                  # true면 approved_at이 기록된 큐 레코드만 발행한다. 정책 변경 키 (2단계 확인)
+
+channels:
+  naver_blog: { enabled: true,  max_per_day: 1, publish_window: "09:00-11:00" }
+  threads:    { enabled: true,  max_per_day: 3, api_limit_per_24h: 250 }
+  instagram:  { enabled: true,  max_per_day: 1, api_limit_per_24h: 100 }
+  youtube:    { enabled: true,  max_per_day: 1 }
+  meta_ads:   { enabled: true,  mode: "draft_only" }  # draft_only | approval | auto.
+                                                              # approval=건별 승인 후 집행 (11.3 #3).
+                                                              # auto는 대표의 명시적 opt-in에서만 허용 (11.3 #3)
+
+budgets:
+  meta_daily_cap_krw: 30000       # 미러. 정본: knowledge/08_승인기준.md
+  higgsfield_monthly_krw: 50000   # 실사업 확정 전까지 상한 유지 (18장 #4)
+
+customer_care:
+  mode: "draft_only"              # draft_only | auto_send. auto_send는 대표의 명시적 opt-in에서만 허용 (11.3 #4)
+
+repurchase:
+  d7_channel: null                # null | sms | alimtalk | dm. null이면 D+7 재구매 메시지 비활성 (11.3 #5)
+  order_source: manual_csv        # manual_csv | smartstore_api. 주문 데이터 출처 (D+7 설계안 docs/d7-repurchase-trigger-design.md)
+
+engagement:                       # SPEC 21장. 인스타그램 댓글→DM 자동화 (30분 폴링)
+  comment_to_dm:
+    enabled: false                # 기본 비활성. true는 대표의 명시적 opt-in에서만 허용
+    keywords: []                  # 빈 배열=전체 댓글 대상. 예: ["가격", "신청", "링크"]
+    public_reply_templates:       # 공개 답글 문구 3개 이상 (로테이션, 스팸 방지)
+      - "댓글 감사해요! DM으로 안내 보내드릴게요 😊"
+      - "관심 가져주셔서 감사합니다! 자세한 내용은 DM 확인해주세요 🙌"
+      - "남겨주신 댓글 잘 봤어요! DM으로 자세히 안내드릴게요 ✨"
+    require_follow: true          # true면 미팔로워에게 팔로우 요청 DM 발송
+    dm_template: "요청하신 정보입니다: ..."            # 팔로워용 DM 본문
+    dm_follow_request_template: "팔로우해주시면 정보를 보내드릴게요! ..."  # 미팔로워용 DM 본문
+    check_interval_minutes: 30    # cron 스케줄과 일치시킬 것
+    max_per_run: 20               # 1회 실행당 처리 상한 (과도 발송 방지)
+
+quality_gate:
+  similarity_threshold: 0.80      # 미러. 정본: knowledge/08_승인기준.md
+  max_rework: 2                   # 2차 검수 수정 후 재검수 최대 횟수
+
+retry:
+  max_attempts: 3
+  backoff_minutes: [5, 15, 45]    # 지수 백오프
+
+retention:
+  logs_days: 90
+  assets_days: 90                  # 이후 assets/archive/ 로 압축 아카이브
+
+notifications:
+  telegram_chat_id: ""            # 값은 비워둠. 토큰은 secrets.env

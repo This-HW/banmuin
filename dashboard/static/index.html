@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>마케팅 자동화 대시보드</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--line:#e5e7eb;--ink:#1f2937;--mut:#6b7280;
+--green:#15803d;--greenbg:#dcfce7;--amber:#b45309;--amberbg:#fef3c7;
+--red:#b91c1c;--redbg:#fee2e2;--blue:#1d4ed8;--bluebg:#dbeafe;--graybg:#f3f4f6}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);
+font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;font-size:15px}
+header{background:#111827;color:#fff;padding:14px 20px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+header h1{font-size:17px;margin:0;font-weight:700}
+header select{background:#1f2937;color:#fff;border:1px solid #374151;border-radius:8px;padding:6px 10px;font-size:14px}
+nav{background:#fff;border-bottom:1px solid var(--line);display:flex;gap:4px;padding:0 16px;position:sticky;top:0;z-index:5}
+nav button{border:0;background:none;padding:13px 14px;font-size:15px;cursor:pointer;color:var(--mut);border-bottom:3px solid transparent}
+nav button.on{color:var(--ink);font-weight:700;border-bottom-color:#111827}
+main{max-width:1080px;margin:0 auto;padding:20px 16px 60px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+.card h2{font-size:15px;margin:0 0 12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.stat{background:var(--graybg);border-radius:10px;padding:14px;text-align:center}
+.stat b{font-size:26px;display:block}
+.stat span{font-size:13px;color:var(--mut)}
+.badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12.5px;font-weight:600;white-space:nowrap}
+.b-queued{background:var(--graybg);color:#374151}.b-publishing{background:var(--amberbg);color:var(--amber)}
+.b-published{background:var(--greenbg);color:var(--green)}.b-failed,.b-dead{background:var(--redbg);color:var(--red)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mut);font-weight:600;font-size:13px;white-space:nowrap}
+tr:hover td{background:#fafafa}
+.mut{color:var(--mut)}.small{font-size:13px}
+.warn{background:var(--redbg);border:1px solid #fecaca;border-radius:12px;padding:14px 18px;margin-bottom:16px;color:var(--red);font-weight:600}
+.ok-banner{background:var(--greenbg);border:1px solid #bbf7d0;border-radius:12px;padding:14px 18px;margin-bottom:16px;color:var(--green)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 14px;font-size:14px;cursor:pointer}
+.btn:hover{background:#f9fafb}
+.btn.primary{background:#111827;color:#fff;border-color:#111827}
+.btn.danger{background:var(--red);color:#fff;border-color:var(--red)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+input[type=text],select.flt{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:14px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:20;padding:16px}
+.modal.open{display:flex}
+.modal .box{background:#fff;border-radius:14px;padding:22px;max-width:420px;width:100%}
+.modal .box h3{margin:0 0 10px;font-size:16px}
+.modal .box p{font-size:14px;color:var(--mut)}
+.modal .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+pre.cfg{background:#111827;color:#e5e7eb;border-radius:10px;padding:14px;overflow:auto;font-size:13px;max-height:420px}
+.md h1{font-size:19px}.md h2{font-size:16px;margin-top:20px}.md ul{padding-left:20px}.md li{margin:4px 0}
+#tokenGate{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:30}
+#tokenGate.open{display:flex}
+#tokenGate .box{background:#fff;border:1px solid var(--line);border-radius:14px;padding:28px;max-width:380px;width:calc(100% - 32px)}
+#tokenGate input{width:100%;margin:10px 0}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;
+padding:10px 18px;border-radius:10px;font-size:14px;display:none;z-index:40}
+.toast.show{display:block}
+@media(max-width:640px){table.compact th:nth-child(4),table.compact td:nth-child(4){display:none}
+nav{overflow-x:auto;white-space:nowrap}
+nav button{white-space:nowrap;flex-shrink:0;padding:13px 10px;font-size:14px}}
+</style>
+</head>
+<body>
+<header>
+<h1>📊 마케팅 자동화 대시보드</h1>
+<select id="bizSel" aria-label="사업 선택"></select>
+<span class="small" id="clock" style="color:#9ca3af"></span>
+</header>
+<nav>
+<button data-s="today" class="on">오늘 현황</button>
+<button data-s="queue">큐·발행 관리</button>
+<button data-s="reports">리포트</button>
+<button data-s="integrations">연동 상태</button>
+<button data-s="content">콘텐츠</button>
+<button data-s="ads">광고</button>
+<button data-s="settings">설정</button>
+<button data-s="control">제어</button>
+</nav>
+<main id="main"></main>
+
+<div class="modal" id="modal"><div class="box">
+<h3 id="mTitle"></h3><p id="mBody"></p>
+<div id="mInput"></div>
+<div class="acts"><button class="btn" id="mCancel">취소</button><button class="btn danger" id="mOk">확인</button></div>
+</div></div>
+
+<div id="tokenGate"><div class="box">
+<h3 style="margin:0">대시보드 토큰</h3>
+<p class="small mut">API 접근 토큰을 입력하세요. 브라우저를 닫으면 지워집니다.</p>
+<input type="text" id="tokenInput" placeholder="DASHBOARD_TOKEN" autocomplete="off">
+<button class="btn primary" id="tokenGo" style="width:100%">입장</button>
+</div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $=s=>document.querySelector(s);
+let TOKEN=sessionStorage.getItem("dash_token")||"";
+let BIZ=new URLSearchParams(location.search).get("business")||"main";
+let SCREEN="today";
+
+let toastTimer=null;
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");
+if(toastTimer)clearTimeout(toastTimer);
+toastTimer=setTimeout(()=>{t.classList.remove("show");toastTimer=null},2200)}
+async function api(path,opt={}){
+  const r=await fetch(path+(path.includes("?")?"&":"?")+"business="+encodeURIComponent(BIZ),
+    {headers:{"Authorization":"Bearer "+TOKEN,"Content-Type":"application/json"},...opt});
+  if(r.status===401){TOKEN="";sessionStorage.removeItem("dash_token");gate();throw new Error("401");}
+  const j=await r.json();
+  if(!r.ok) throw new Error(j.error?j.error.code+": "+j.error.message:r.status);
+  return j;
+}
+function gate(){$("#tokenGate").classList.add("open")}
+$("#tokenGo").onclick=()=>{const v=$("#tokenInput").value.trim();if(!v)return;
+  TOKEN=v;sessionStorage.setItem("dash_token",v);$("#tokenGate").classList.remove("open");boot();};
+function badge(s){const m={queued:"대기",publishing:"발행 중",published:"발행 완료",failed:"실패",dead:"DLQ"};
+  return `<span class="badge b-${s}">${m[s]||s}</span>`}
+function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function safeUrl(u){return /^https?:\/\//i.test(u||"")?u:""}  /* javascript: 등 비http(s) 스킴 차단 */
+function linkHtml(u){const v=safeUrl(u);return v?`<a class="small" href="${esc(v)}" target="_blank" rel="noopener">열기</a>`:""}
+function viewJson(title,obj){modal(title,`<pre class="small" style="white-space:pre-wrap;word-break:break-all;max-height:50vh;overflow:auto">${esc(JSON.stringify(obj,null,2))}</pre>`,"",()=>{},false)}
+function chName(c){return {naver_blog:"네이버 블로그",threads:"Threads",instagram:"인스타그램",youtube:"유튜브",meta_ads:"Meta 광고",higgsfield:"Higgsfield",telegram:"텔레그램"}[c]||c}
+function intBadge(s){const m={"정상":"b-published","이상":"b-failed","미연결":"b-publishing","비활성":"b-queued","미확인":"b-queued"};
+  return `<span class="badge ${m[s]||"b-queued"}">${esc(s)}</span>`}
+function draftBadge(s){const m={"통과":"b-published","작성중":"b-publishing","게이트대기":"b-publishing","보류":"b-queued","폐기":"b-failed","미확인":"b-queued"};
+  return `<span class="badge ${m[s]||"b-queued"}">${esc(s)}</span>`}
+function fmtT(iso){if(!iso)return "-";const d=new Date(iso);
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")+" "
+  +String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")}
+function modal(title,body,inputHTML,onOk,danger=true){
+  $("#mTitle").textContent=title;$("#mBody").innerHTML=body;$("#mInput").innerHTML=inputHTML||"";
+  $("#mOk").className="btn "+(danger?"danger":"primary");
+  $("#mOk").textContent="확인";
+  $("#modal").classList.add("open");
+  $("#mOk").onclick=()=>{const r=onOk($("#mField")?$("#mField").value:"");if(r===false)return;$("#modal").classList.remove("open")};
+}
+$("#mCancel").onclick=()=>$("#modal").classList.remove("open");
+
+async function loadBiz(){
+  const j=await api("/api/businesses");
+  const sel=$("#bizSel");sel.innerHTML="";
+  j.businesses.forEach(b=>{const o=document.createElement("option");o.value=b.slug;
+    o.textContent=b.slug+(b.demo?" (데모)":"");if(b.slug===BIZ)o.selected=true;sel.appendChild(o)});
+  if(!j.businesses.some(b=>b.slug===BIZ)&&j.businesses.length){BIZ=j.businesses[0].slug;sel.value=BIZ}
+  sel.onchange=()=>{BIZ=sel.value;render()};
+}
+
+/* ---------- 화면 1: 오늘 현황 ---------- */
+async function sToday(el){
+  const s=await api("/api/status");
+  let h="";
+  if(s.kill.active) h+=`<div class="warn">⛔ KILL 발동 중 — 사유: ${esc(s.kill.reason||"")} <span class="small">(${esc(s.kill.at||"")})</span></div>`;
+  const rs={waiting:["대기","b-queued"],running:["실행 중","b-publishing"],completed:["완료","b-published"],failed:["실패","b-failed"]}[s.routine]||[s.routine,"b-queued"];
+  h+=`<div class="card"><h2>상태 <span class="small mut">(SPEC 8.1 기준)</span></h2><div class="grid">
+    <div class="stat"><b><span class="badge ${rs[1]}">${rs[0]}</span></b><span>오늘 루틴</span></div>
+    <div class="stat"><b>${esc(s.next_trigger.name)}</b><span>다음 트리거 ${esc(fmtT(s.next_trigger.at))}</span></div>
+    <div class="stat"><b>${s.dlq_count}</b><span>DLQ 건수</span></div>
+    <div class="stat"><b>${s.report.exists?"있음":"미생성"}</b><span>오늘 아침 리포트${s.report.at?` · 생성 ${esc(fmtT(s.report.at))}`:""}</span>${s.report.exists?`<br><a href="#" id="goRep" class="small">리포트 보기 →</a>`:""}</div></div>`;
+  if(s.last_run) h+=`<p class="small mut" style="margin:10px 0 0">마지막 실행: ${esc(s.last_run.trigger)} · ${esc(s.last_run.status)} · ${esc(fmtT(s.last_run.finished_at))}${s.last_run.failed_stage?" · 실패 단계: "+esc(s.last_run.failed_stage):""}</p>`;
+  h+=`</div>`;
+  const q=await api("/api/queue?limit=100");
+  const today=s.today_date; /* 서버 계산 KST 날짜 (SPEC 20.7: 모든 시각은 KST) */
+  const rows=q.records.filter(r=>(r.date||"").slice(0,10)===today);
+  h+=`<div class="card"><h2>오늘 발행 <span class="badge b-queued">${s.today.queued}</span> <span class="badge b-publishing">${s.today.publishing}</span> <span class="badge b-published">${s.today.published}</span> <span class="badge b-failed">${s.today.failed}</span></h2>`;
+  h+=rows.length?`<table class="compact"><tr><th>채널</th><th>내용</th><th>상태</th><th>예정/발행</th></tr>`+
+    rows.map((r,i)=>`<tr><td>${esc(chName(r.channel))}</td><td>${esc(r.content_id)}<br><span class="mut small">${esc(r.id||"")}</span> <a href="#" class="small" data-todayjson="${i}">원본</a>${linkHtml(r.url)?`<br>`+linkHtml(r.url):""}${r.error?`<br><span class="small" style="color:var(--red)">${esc(r.error)}</span>`:""}</td><td>${badge(r.status)}</td><td class="small">${esc(fmtT(r.scheduled_at))}</td></tr>`).join("")+`</table>`
+    :`<p class="mut">오늘 발행 건이 없습니다.</p>`;
+  h+=`</div>`;
+  if(s.dlq_count>0){const d=await api("/api/dlq");
+    h+=`<div class="card"><h2>⚠️ 이슈 — DLQ ${d.total}건</h2><table><tr><th>채널</th><th>내용</th><th>사유</th></tr>`+
+    d.records.map(r=>`<tr><td>${esc(chName(r.channel))}</td><td class="small">${esc(r.content_id)}</td><td class="small" style="color:var(--red)">${esc(r.error)}</td></tr>`).join("")+`</table></div>`}
+  /* 2차: 세션/API 이상 여부는 health.json 기준 (SPEC 20.10) */
+  const hj=await api("/api/health").catch(()=>null);
+  if(hj&&hj.exists===false){
+    h+=`<div class="card"><h2>연동 상태</h2><p class="mut">미확인 — 헬스체크가 아직 실행되지 않았습니다. (06:30 루틴 시작 시 기록)</p></div>`;
+  }else if(hj&&hj.channels){
+    const bad=Object.entries(hj.channels).filter(([,v])=>v.ok===false);
+    if(bad.length){
+      h+=`<div class="card"><h2>⚠️ 이슈 — 연동 이상 ${bad.length}건 <span class="small mut">(${esc(fmtT(hj.at))} 기준)</span></h2><table><tr><th>연동</th><th>상세</th></tr>`+
+      bad.map(([k,v])=>`<tr><td>${esc(chName(k))}</td><td class="small" style="color:var(--red)">${esc(v.detail||"")}</td></tr>`).join("")+`</table>
+      <p class="small"><a href="#" id="goInt">연동 상태에서 확인하기 →</a></p></div>`;
+    }
+  }
+  el.innerHTML=h;
+  const gi=$("#goInt");
+  if(gi)gi.onclick=e=>{e.preventDefault();SCREEN="integrations";render()};
+  const gr=$("#goRep");
+  if(gr)gr.onclick=e=>{e.preventDefault();SCREEN="reports";render()};
+  el.querySelectorAll("[data-todayjson]").forEach(a=>a.onclick=e=>{e.preventDefault();viewJson("큐 레코드 원본",rows[+a.dataset.todayjson])});
+}
+
+/* ---------- 화면 2: 큐·발행 관리 ---------- */
+let qFilter={status:"",channel:""};
+async function sQueue(el){
+  const q=await api(`/api/queue?limit=200&status=${qFilter.status}&channel=${qFilter.channel}`);
+  const d=await api("/api/dlq");
+  const st=await api("/api/settings").catch(()=>null);
+  const reqAppr=!!(st&&st.publishing&&st.publishing.require_approval); /* 발행 승인 모드 */
+  const pl=await api("/api/publish-log?limit=50");
+  const chs=[...new Set(q.records.map(r=>r.channel))];
+  let h=`<div class="card"><h2>발행 큐 (${q.total}건)</h2><div class="row" style="margin-bottom:12px">
+    <select class="flt" id="fStatus"><option value="">전체 상태</option>${["queued","publishing","published","failed"].map(s=>`<option ${qFilter.status===s?"selected":""} value="${s}">${s}</option>`).join("")}</select>
+    <select class="flt" id="fChannel"><option value="">전체 채널</option>${chs.map(c=>`<option ${qFilter.channel===c?"selected":""} value="${c}">${esc(chName(c))}</option>`).join("")}</select></div>`;
+  h+=q.records.length?`<table class="compact"><tr><th>채널</th><th>내용</th><th>상태</th><th>시도</th><th>예정 시각</th>${reqAppr?"<th>승인</th>":""}</tr>`+
+    q.records.map((r,i)=>{const ap=r.approved_at?`<span class="badge b-published">승인됨</span>`:`<span class="badge b-queued">승인 대기</span>`;
+    const btn=(reqAppr&&r.status==="queued")?`<button class="btn" data-approve="${esc(r.id)}" data-on="${r.approved_at?"0":"1"}">${r.approved_at?"승인 취소":"승인"}</button>`:"";
+    return `<tr><td>${esc(chName(r.channel))}</td><td>${esc(r.content_id)}${r.category?` <span class="small mut">[${esc(r.category)}]</span>`:""}<br><span class="mut small">${esc(r.id||"")}</span> <a href="#" class="small" data-qjson="${i}">원본</a>${linkHtml(r.url)?`<br>`+linkHtml(r.url):""}${r.error?`<br><span class="small" style="color:var(--red)">${esc(r.error)}</span>`:""}</td><td>${badge(r.status)}${reqAppr&&r.status==="queued"?`<br>`+ap:""}</td><td>${r.attempts??"-"}</td><td class="small">${esc(fmtT(r.scheduled_at))}</td>${reqAppr?`<td>${btn}</td>`:""}</tr>`}).join("")+`</table>`
+    :`<p class="mut">큐가 비어 있습니다.</p>`;
+  h+=`</div><div class="card"><h2>DLQ — 격리 ${d.total}건</h2>`;
+  h+=d.records.length?`<table><tr><th>채널</th><th>내용</th><th>사유</th><th></th></tr>`+
+    d.records.map((r,i)=>`<tr><td>${esc(chName(r.channel))}</td><td class="small">${esc(r.content_id)}<br><span class="mut">${esc(r.id)}</span> <a href="#" class="small" data-djson="${i}">원본</a></td><td class="small" style="color:var(--red)">${esc(r.error)}</td><td><button class="btn" data-resolve="${esc(r.id)}">복구</button></td></tr>`).join("")+`</table>`
+    :`<p class="mut">DLQ가 비어 있습니다.</p>`;
+  h+=`</div><div class="card"><h2>발행 이력 (최근)</h2><table class="compact"><tr><th>채널</th><th>내용</th><th>상태</th><th>URL</th></tr>`+
+    pl.records.map((r,i)=>`<tr><td>${esc(chName(r.channel))}</td><td class="small">${esc(r.content_id)}<br><a href="#" class="small" data-pjson="${i}">원본</a></td><td>${badge(r.status)}</td><td>${linkHtml(r.url)||"-"}</td></tr>`).join("")+`</table></div>`;
+  el.innerHTML=h;
+  $("#fStatus").onchange=e=>{qFilter.status=e.target.value;render()};
+  $("#fChannel").onchange=e=>{qFilter.channel=e.target.value;render()};
+  el.querySelectorAll("[data-qjson]").forEach(a=>a.onclick=e=>{e.preventDefault();viewJson("큐 레코드 원본",q.records[+a.dataset.qjson])});
+  el.querySelectorAll("[data-djson]").forEach(a=>a.onclick=e=>{e.preventDefault();viewJson("DLQ 레코드 원본",d.records[+a.dataset.djson])});
+  el.querySelectorAll("[data-pjson]").forEach(a=>a.onclick=e=>{e.preventDefault();viewJson("발행 이력 원본",pl.records[+a.dataset.pjson])});
+  el.querySelectorAll("[data-approve]").forEach(b=>b.onclick=()=>{
+    const on=b.dataset.on==="1";
+    modal(on?"발행 승인":"승인 취소",`"${esc(b.dataset.approve)}"을(를) ${on?"발행 승인합니다":"승인 취소합니다"}.`,"",
+      async()=>{try{await api("/api/queue/approval",{method:"POST",body:JSON.stringify({id:b.dataset.approve,approved:on})});toast(on?"승인됨":"승인 취소됨");render()}catch(e){toast(e.message)}},false)});
+  el.querySelectorAll("[data-resolve]").forEach(b=>b.onclick=()=>{
+    modal("DLQ 복구",`"${esc(b.dataset.resolve)}"을(를) 발행 큐로 복구합니다.<br>효과: <span class="small">bin/dlq.sh resolve 와 동일</span>`,"",
+      async()=>{try{await api("/api/dlq/resolve",{method:"POST",body:JSON.stringify({id:b.dataset.resolve})});toast("복구 완료");render()}catch(e){toast(e.message)}},false)});
+}
+
+/* ---------- 화면 3: 리포트 ---------- */
+function md(src){
+  return esc(src).split("\n").map(l=>{
+    if(/^### /.test(l))return "<h3>"+l.slice(4)+"</h3>";
+    if(/^## /.test(l))return "<h2>"+l.slice(3)+"</h2>";
+    if(/^# /.test(l))return "<h1>"+l.slice(2)+"</h1>";
+    if(/^- /.test(l))return "<li>"+l.slice(2).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>")+"</li>";
+    if(l.trim()==="")return "";
+    return "<p>"+l.replace(/\*\*(.+?)\*\*/g,"<b>$1</b>")+"</p>";
+  }).join("").replace(/(<li>.*<\/li>)(?!\s*<li>)/gs,"<ul>$1</ul>");
+}
+async function sReports(el){
+  const j=await api("/api/reports");
+  let h=`<div class="card"><h2>아침 리포트 아카이브</h2>`;
+  if(!j.reports.length){el.innerHTML=h+`<p class="mut">리포트가 없습니다.</p></div>`;return}
+  h+=`<div class="row" style="margin-bottom:12px"><select class="flt" id="repSel">`+
+    j.reports.map(r=>`<option value="${r.date}">${r.date}</option>`).join("")+`</select></div><div class="md card" id="repBody" style="margin:0"></div></div>`;
+  el.innerHTML=h;
+  const show=async()=>{const d=await api("/api/reports/"+$("#repSel").value);$("#repBody").innerHTML=md(d.markdown)};
+  $("#repSel").onchange=show;await show();
+  const c=await api("/api/config").catch(()=>null);
+  if(c){el.innerHTML+=`<div class="card"><h2>예산 캡 (설정)</h2>`+
+    (c.budgets&&c.budgets.length?`<table><tr><th>항목</th><th>상한</th></tr>`+
+      c.budgets.map(b=>`<tr><td class="small">${esc(b.key)}</td><td>${Number(b.capKrw).toLocaleString()}원</td></tr>`).join("")+`</table>`
+      :`<p class="mut">미확인</p>`)+
+    `<p class="small mut">사용량: 미확인 (집계 규격 없음)</p></div>`}
+}
+
+/* ---------- 화면 5: 연동 상태 (2차) ---------- */
+async function sIntegrations(el){
+  const j=await api("/api/integrations");
+  let h=`<div class="card"><h2>계정 연동 상태 <span class="small mut">(SPEC 7.6 기준${j.health_at?" · "+esc(fmtT(j.health_at))+" 확인":" · 미확인"})</span></h2>`;
+  h+=`<table><tr><th>연동</th><th>상태</th><th>상세</th><th></th></tr>`+
+    j.integrations.map(it=>`<tr><td><b>${esc(it.name)}</b><br><span class="small mut">${esc(it.key)}</span></td>`+
+      `<td>${intBadge(it.status)}</td>`+
+      `<td class="small">${esc(it.detail||"")}${it.checked_at?`<br><span class="mut">${esc(fmtT(it.checked_at))} 확인</span>`:""}</td>`+
+      `<td>${(it.status==="미연결"||it.status==="이상")?`<button class="btn" data-ireq="${esc(it.key)}">연동 요청</button> `:""}<button class="btn" data-wiz="${esc(it.key)}">연동하기</button></td></tr>`).join("")+`</table></div>`;
+  h+=`<div class="card"><h2>연동 가이드</h2>`+
+    j.integrations.map(it=>`<p class="small" style="margin:8px 0"><b>${esc(it.name)}</b> — ${esc(it.guide)}</p>`).join("")+`</div>`;
+  h+=`<div class="card"><h2>안내</h2><p class="small mut">"연동하기"는 항목별 단계 가이드 + 토큰 저장까지 안내합니다.<br>
+    OAuth 로그인·결제·네이버 로그인은 브라우저에서 직접 수행해야 합니다.<br>
+    "연동 요청"은 다음 루틴 기동 시 텔레그램으로 알림을 보내는 역할까지만 합니다. 토큰·세션을 대시보드에서 직접 만지지 않습니다.</p></div>`;
+  el.innerHTML=h;
+  el.querySelectorAll("[data-wiz]").forEach(b=>b.onclick=()=>openWizard(b.dataset.wiz));
+  el.querySelectorAll("[data-ireq]").forEach(b=>b.onclick=()=>{
+    const it=j.integrations.find(x=>x.key===b.dataset.ireq);
+    modal("연동 요청",`"${esc(it.name)}" 연동 확인 요청을 알림 큐에 적재합니다.<br><span class="small">다음 오케스트레이터 기동 시 텔레그램으로 알림됩니다.</span>`,"",
+      async()=>{try{await api("/api/integrations/request",{method:"POST",body:JSON.stringify({channel:b.dataset.ireq})});toast("연동 요청 적재됨");render()}catch(e){toast(e.message)}},false)});
+}
+
+/* ---------- 화면 6: 콘텐츠 (3차, 읽기 전용) ---------- */
+let cFilter={channel:"",status:""};
+async function sContent(el){
+  const j=await api(`/api/drafts?limit=100&channel=${cFilter.channel}&status=${cFilter.status}`);
+  const chs=[...new Set(j.drafts.map(d=>d.channel).filter(c=>c!=="미확인"))];
+  const sts=["작성중","게이트대기","통과","보류","폐기"];
+  let h=`<div class="card"><h2>콘텐츠 초안 (${j.total}건) <span class="small mut">읽기 전용</span></h2>
+    <div class="row" style="margin-bottom:12px">
+    <select class="flt" id="cChannel"><option value="">전체 채널</option>${chs.map(c=>`<option ${cFilter.channel===c?"selected":""} value="${esc(c)}">${esc(chName(c))}</option>`).join("")}</select>
+    <select class="flt" id="cStatus"><option value="">전체 상태</option>${sts.map(s=>`<option ${cFilter.status===s?"selected":""} value="${s}">${s}</option>`).join("")}</select></div>`;
+  h+=j.drafts.length?`<table class="compact"><tr><th>채널</th><th>제목</th><th>상태</th><th>작성 시각</th></tr>`+
+    j.drafts.map(d=>`<tr data-draft="${esc(d.id)}" style="cursor:pointer"><td>${esc(chName(d.channel))}</td><td>${esc(d.title)}</td><td>${draftBadge(d.status)}</td><td class="small">${esc(d.created_at==="미확인"?"미확인":fmtT(d.created_at))}</td></tr>`).join("")+`</table>`
+    :`<p class="mut">초안이 없습니다.</p>`;
+  h+=`</div>`;
+  el.innerHTML=h;
+  $("#cChannel").onchange=e=>{cFilter.channel=e.target.value;render()};
+  $("#cStatus").onchange=e=>{cFilter.status=e.target.value;render()};
+  el.querySelectorAll("[data-draft]").forEach(tr=>tr.onclick=()=>showDraft(tr.dataset.draft));
+}
+async function showDraft(id){
+  const el=$("#main");
+  const d=await api("/api/drafts/"+encodeURIComponent(id));
+  const m=d.meta, g=m?m.gate:null;
+  let h=`<div class="card"><p><a href="#" id="backList">← 목록으로</a></p><h2>${esc(m?m.title:id)}</h2>
+    <p class="small mut">${esc(m?chName(m.channel):"미확인")} · ${draftBadge(m?m.status:"미확인")} · ${esc(m&&m.created_at?fmtT(m.created_at):"미확인")}</p></div>`;
+  h+=`<div class="card"><h2>게이트 검수 결과</h2>`;
+  h+=g&&g.result?`<p>${draftBadge(g.result==="통과"?"통과":g.result==="수정요청"?"게이트대기":"폐기")} ${esc(g.result)}${g.reason?` — <span style="color:var(--red)">${esc(g.reason)}</span>`:""}</p>`
+    :`<p class="mut">미확인 — 게이트 미실시</p>`;
+  h+=`</div><div class="card"><h2>원문</h2><div class="md">${md(d.content_markdown||"(비어 있음)")}</div></div>`;
+  h+=`<div class="card"><p class="small mut">읽기 전용입니다. 초안 수정·승인·발행은 정책 결정 전까지 대시보드에서 제공하지 않습니다.</p></div>`;
+  el.innerHTML=h;
+  $("#backList").onclick=e=>{e.preventDefault();render()};
+}
+
+/* ---------- 연동 위자드 (4차) ---------- */
+const WIZ={
+ meta_ads:{link:"https://developers.facebook.com",linkName:"Meta 개발자 콘솔",
+  steps:["Meta 개발자 콘솔에서 앱을 생성하세요","광고 계정을 연결하고 OAuth 권한을 승인하세요","발급받은 액세스 토큰을 아래에 입력하세요"],
+  secret:"META_OAUTH_ACCESS_TOKEN"},
+ threads:{link:"https://developers.facebook.com",linkName:"Meta 개발자 콘솔",
+  steps:["같은 Meta 앱에서 Threads API 권한을 추가하세요","발급받은 액세스 토큰을 아래에 입력하세요"],
+  secret:"THREADS_ACCESS_TOKEN"},
+ instagram:{link:"https://developers.facebook.com",linkName:"Meta 개발자 콘솔",
+  steps:["Instagram 앱에서 프로페셔널 계정으로 전환하세요","Facebook 페이지를 연결하세요","발급받은 액세스 토큰을 아래에 입력하세요"],
+  secret:"INSTAGRAM_ACCESS_TOKEN"},
+ youtube:{link:"https://console.cloud.google.com",linkName:"Google Cloud 콘솔",
+  steps:["Google Cloud 콘솔에서 프로젝트를 생성하세요","YouTube Data API를 활성화하고 API 키를 발급받아 아래에 입력하세요 (읽기 전용 채널 확인용. 발행용 OAuth 인증은 실제 YouTube 연동 단계에서 진행합니다)"],
+  secret:"YOUTUBE_API_KEY"},
+ higgsfield:{link:null,
+  steps:["Higgsfield 웹사이트에서 계정을 생성하세요","크레딧을 충전하세요 (직접 결제)","발급받은 API 키를 아래에 입력하세요"],
+  secret:"HIGGSFIELD_API_KEY"},
+ telegram:{link:null,
+  steps:["텔레그램에서 @BotFather를 찾아 새 봇을 생성하세요","발급받은 봇 토큰을 아래에 입력하세요","알림을 받을 chat_id를 입력하세요 (설정에 저장됩니다)"],
+  secret:"TELEGRAM_BOT_TOKEN",chatId:true},
+ naver_blog:{link:null,
+  steps:["네이버 로그인은 HW가 브라우저에서 직접 해야 합니다 (takeover 원칙)","아래 '로그인 요청 보내기'를 누르면 다음 루틴 기동 시 텔레그램으로 알림됩니다"],
+  secret:null}
+};
+function openWizard(key){
+  const w=WIZ[key];if(!w)return;
+  $("#mTitle").textContent=chName(key)+" 연동하기";
+  let h=`<ol class="small" style="padding-left:20px;margin:0 0 8px">`+
+    w.steps.map(s=>`<li style="margin:6px 0">${esc(s)}</li>`).join("")+`</ol>`;
+  if(w.link)h+=`<p style="margin:8px 0"><a href="${w.link}" target="_blank" rel="noopener">${esc(w.linkName)} 열기 ↗</a></p>`;
+  let inp="";
+  if(w.secret)inp+=`<input type="password" id="wToken" placeholder="토큰 붙여넣기" style="width:100%;margin:6px 0" autocomplete="off">`;
+  if(w.chatId)inp+=`<input type="text" id="wChatId" placeholder="telegram chat_id" style="width:100%;margin:6px 0">`;
+  $("#mBody").innerHTML=h;
+  $("#mInput").innerHTML=inp;
+  const okBtn=$("#mOk");
+  okBtn.className="btn primary";
+  okBtn.textContent=key==="naver_blog"?"로그인 요청 보내기":"저장하기";
+  $("#modal").classList.add("open");
+  okBtn.onclick=async()=>{
+    try{
+      if(key==="naver_blog"){
+        await api("/api/integrations/request",{method:"POST",body:JSON.stringify({channel:"naver_blog"})});
+        toast("로그인 요청 적재됨");
+      }else{
+        if(w.secret){
+          const t=$("#wToken")?$("#wToken").value.trim():"";
+          if(!t){toast("토큰을 입력하세요");return}
+          try{
+            await api("/api/secrets",{method:"POST",body:JSON.stringify({key:w.secret,value:t})});
+          }catch(e){
+            /* 쓰기 불가능 환경 폴백: 토큰 저장 기능 비활성화 */
+            $("#mInput").innerHTML=`<p class="small" style="color:var(--red)">이 환경에서는 토큰 저장이 지원되지 않습니다.<br>${esc(e.message)}</p>`;
+            return;
+          }
+        }
+        if(w.chatId){
+          const c=$("#wChatId")?$("#wChatId").value.trim():"";
+          if(c)await api("/api/settings",{method:"POST",body:JSON.stringify({updates:[{key:"notifications.telegram_chat_id",value:c}]})});
+        }
+        toast("저장됨 — 다음 06:30 헬스체크에서 확인됩니다");
+      }
+      $("#modal").classList.remove("open");render();
+    }catch(e){toast(e.message)}
+  };
+}
+
+/* ---------- 화면 8: 광고 (v1.10.6, 건별 승인) ---------- */
+function adBadge(s){return {draft:`<span class="badge b-queued">승인 대기</span>`,approved:`<span class="badge b-published">승인됨</span>`,active:`<span class="badge b-published">집행 중</span>`,rejected:`<span class="badge" style="background:#fee2e2;color:#991b1b">반려됨</span>`}[s]||`<span class="badge">${esc(s||"-")}</span>`}
+async function sAds(el){
+  const d=await api("/api/ads/drafts");
+  const st=await api("/api/settings").catch(()=>null);
+  const mode=st&&st.channels&&st.channels.meta_ads?st.channels.meta_ads.mode:"draft_only";
+  let h=`<div class="card"><h2>광고 초안 (${d.records.length}건)</h2><p class="small mut">현재 모드: <b>${esc(mode)}</b>${mode==="draft_only"?" — 초안만 생성됩니다 (집행 안 함)":mode==="approval"?" — 승인한 건만 집행됩니다":mode==="auto"?" — 상한 내에서 자동 집행됩니다":""}</p>`;
+  h+=d.records.length?`<table class="compact"><tr><th>캠페인명</th><th>일예산</th><th>상태</th><th>생성 시각</th><th></th></tr>`+
+    d.records.map((r,i)=>{
+    const btn=r.status==="draft"?`<button class="btn" data-adapprove="${esc(r.id)}" data-on="1">승인</button> <button class="btn" data-adapprove="${esc(r.id)}" data-on="0">반려</button>`:(r.status==="approved"?`<button class="btn" data-adapprove="${esc(r.id)}" data-on="0">승인 취소</button>`:"");
+    return `<tr><td class="small">${esc(r.campaign_name||"")}<br><span class="mut">${esc(r.id||"")}</span> <a href="#" class="small" data-adjson="${i}">원본</a></td><td>${r.daily_budget_krw!=null?Number(r.daily_budget_krw).toLocaleString()+"원":"-"}</td><td>${adBadge(r.status)}</td><td class="small">${esc(fmtT(r.created_at))}</td><td>${btn}</td></tr>`}).join("")+`</table>`
+    :`<p class="mut">광고 초안이 없습니다.</p>`;
+  h+=`</div>`;
+  el.innerHTML=h;
+  el.querySelectorAll("[data-adjson]").forEach(a=>a.onclick=e=>{e.preventDefault();viewJson("광고 초안 원본",d.records[+a.dataset.adjson])});
+  el.querySelectorAll("[data-adapprove]").forEach(b=>b.onclick=()=>{
+    const on=b.dataset.on==="1";
+    modal(on?"광고 승인":"광고 반려·승인 취소",`"${esc(b.dataset.adapprove)}"을(를) ${on?"집행 승인합니다":"반려합니다"}.`,"",
+      async()=>{try{await api("/api/ads/approval",{method:"POST",body:JSON.stringify({id:b.dataset.adapprove,approved:on})});toast(on?"승인됨":"반려됨");render()}catch(e){toast(e.message)}},false)});
+}
+
+/* ---------- 화면 7: 설정 (4차) ---------- */
+const POLICY_KEYS=["channels.meta_ads.mode","customer_care.mode","repurchase.d7_channel","publishing.require_approval"];
+function readSettingInput(inp){
+  const t=inp.dataset.t;
+  if(t==="bool")return inp.checked;
+  if(t==="int"){if(inp.value==="")return undefined;const n=parseInt(inp.value,10);return isNaN(n)?undefined:n}
+  if(t==="intlist")return inp.value.split(",").map(x=>parseInt(x.trim(),10)).filter(x=>!isNaN(x));
+  if(t==="nullstr")return inp.value==="null"?null:inp.value;
+  return inp.value;
+}
+function sameSettingVal(a,b){
+  if(Array.isArray(a)&&Array.isArray(b))return a.length===b.length&&a.every((x,i)=>x===b[i]);
+  return a===b;
+}
+async function sSettings(el){
+  const s=await api("/api/settings");
+  const ch=s.channels||{},bd=s.budgets||{},cc=s.customer_care||{},rp=s.repurchase||{},
+        qg=s.quality_gate||{},rt=s.retry||{},re=s.retention||{},nt=s.notifications||{},
+        pb=s.publishing||{};
+  const v=x=>x??"";
+  let h=`<div class="card"><h2>설정 <span class="small mut">config.yaml 편집</span></h2>
+    <p class="small mut">예산 캡·게이트 임계값의 정본은 knowledge/08_승인기준.md입니다.
+    여기서 바꾸면 운영 설정(config.yaml)만 바뀌고, 다음 루틴 기동 시 정본에 동기화됩니다.<br>
+    schedule·timezone·사업 식별자는 여기서 바꿀 수 없습니다.</p></div>`;
+  h+=`<div class="card"><h2>채널</h2><table><tr><th>채널</th><th>사용</th><th>일 상한</th><th>추가 설정</th></tr>`;
+  for(const c of ["naver_blog","threads","instagram","youtube","meta_ads"]){
+    const n=ch[c]||{};
+    h+=`<tr><td><b>${esc(chName(c))}</b></td>
+      <td><input type="checkbox" data-k="channels.${c}.enabled" data-t="bool" ${n.enabled?"checked":""}></td>
+      <td><input type="number" data-k="channels.${c}.max_per_day" data-t="int" value="${v(n.max_per_day)}" min="0" max="50" style="width:70px"></td>
+      <td class="small">${c==="naver_blog"?`발행 시간대 <input type="text" data-k="channels.naver_blog.publish_window" data-t="str" value="${esc(v(n.publish_window))}" placeholder="09:00-11:00" style="width:110px">`:""}${c==="meta_ads"?`모드 <select data-k="channels.meta_ads.mode" data-t="str"><option value="draft_only"${n.mode==="draft_only"?" selected":""}>draft_only</option><option value="approval"${n.mode==="approval"?" selected":""}>approval (건별 승인)</option><option value="auto"${n.mode==="auto"?" selected":""}>auto</option></select> <span class="mut">⚠️ 2단계 확인</span>`:""}</td></tr>`;
+  }
+  h+=`</table></div>`;
+  h+=`<div class="card"><h2>예산 (월·일 상한, 원)</h2><div class="row">
+    <label class="small">Meta 일 상한 <input type="number" data-k="budgets.meta_daily_cap_krw" data-t="int" value="${v(bd.meta_daily_cap_krw)}" min="0" style="width:110px"></label>
+    <label class="small">Higgsfield 월 상한 <input type="number" data-k="budgets.higgsfield_monthly_krw" data-t="int" value="${v(bd.higgsfield_monthly_krw)}" min="0" style="width:110px"></label></div></div>`;
+  h+=`<div class="card"><h2>자동화 정책 <span class="small mut">⚠️ 변경 시 2단계 확인</span></h2><div class="row">
+    <label class="small">고객 응대 <select data-k="customer_care.mode" data-t="str"><option value="draft_only"${cc.mode==="draft_only"?" selected":""}>draft_only</option><option value="auto_send"${cc.mode==="auto_send"?" selected":""}>auto_send</option></select></label>
+    <label class="small">D+7 채널 <select data-k="repurchase.d7_channel" data-t="nullstr"><option value="null"${rp.d7_channel==null?" selected":""}>null (비활성)</option><option value="sms"${rp.d7_channel==="sms"?" selected":""}>sms</option><option value="alimtalk"${rp.d7_channel==="alimtalk"?" selected":""}>alimtalk</option><option value="dm"${rp.d7_channel==="dm"?" selected":""}>dm</option></select></label></div></div>`;
+  h+=`<div class="card"><h2>발행 승인 <span class="small mut">⚠️ 변경 시 2단계 확인</span></h2><div class="row">
+    <label class="small"><input type="checkbox" data-k="publishing.require_approval" data-t="bool" ${pb.require_approval?"checked":""}> 발행 승인 필요</label>
+    <span class="small mut">켜면 대시보드에서 승인한 항목만 발행됩니다 (기본값: 꺼짐=자동발행).<br>네이버 블로그(큐 기반 발행)에 적용됩니다.</span></div></div>`;
+  h+=`<div class="card"><h2>품질 게이트·재시도·보관</h2><div class="row">
+    <label class="small">최대 재검수 <input type="number" data-k="quality_gate.max_rework" data-t="int" value="${v(qg.max_rework)}" min="0" max="5" style="width:60px"></label>
+    <label class="small">재시도 횟수 <input type="number" data-k="retry.max_attempts" data-t="int" value="${v(rt.max_attempts)}" min="1" max="5" style="width:60px"></label>
+    <label class="small">백오프(분, 쉼표 구분) <input type="text" data-k="retry.backoff_minutes" data-t="intlist" value="${esc((rt.backoff_minutes||[]).join(","))}" style="width:110px"></label>
+    <label class="small">로그 보관(일) <input type="number" data-k="retention.logs_days" data-t="int" value="${v(re.logs_days)}" min="7" max="365" style="width:70px"></label>
+    <label class="small">에셋 보관(일) <input type="number" data-k="retention.assets_days" data-t="int" value="${v(re.assets_days)}" min="7" max="365" style="width:70px"></label></div></div>`;
+  h+=`<div class="card"><h2>알림</h2><div class="row">
+    <label class="small">telegram chat_id <input type="text" data-k="notifications.telegram_chat_id" data-t="str" value="${esc(v(nt.telegram_chat_id))}" style="width:140px"></label>
+    <span class="small mut">봇 토큰은 연동 상태 → 텔레그램 "연동하기"에서 입력</span></div>
+    <div class="row" style="margin-top:14px"><button class="btn primary" id="saveSettings">설정 저장</button></div></div>`;
+  el.innerHTML=h;
+  const initial={};
+  el.querySelectorAll("[data-k]").forEach(inp=>{initial[inp.dataset.k]=readSettingInput(inp)});
+  $("#saveSettings").onclick=()=>{
+    const updates=[];
+    el.querySelectorAll("[data-k]").forEach(inp=>{
+      const k=inp.dataset.k,cur=readSettingInput(inp);
+      if(cur===undefined||sameSettingVal(cur,initial[k]))return;  // 바뀐 값만 전송
+      updates.push({key:k,value:cur});
+    });
+    if(!updates.length){toast("변경된 항목이 없습니다");return}
+    const send=async confirmed=>{
+      try{await api("/api/settings",{method:"POST",body:JSON.stringify({updates,confirmed})});
+        toast("설정 저장됨");render()}catch(e){toast(e.message)}
+    };
+    if(updates.some(u=>POLICY_KEYS.includes(u.key)))
+      modal("정책 변경 확인","자동화 정책(광고 모드·고객 응대·D+7 채널·발행 승인)이 변경됩니다.<br>계속 저장할까요?","",()=>send(true),true);
+    else send(false);
+  };
+}
+
+/* ---------- 화면 4: 제어 ---------- */
+async function sControl(el){
+  const s=await api("/api/status");
+  const k=s.kill.active;
+  let h=k?`<div class="warn">⛔ KILL 발동 중 — 사유: ${esc(s.kill.reason||"")} <span class="small">(${esc(s.kill.at||"")})</span></div>`
+    :`<div class="ok-banner">✅ 정상 운영 중 — 킬스위치 미발동</div>`;
+  h+=`<div class="card"><h2>비상정지 (킬스위치)</h2>
+    <p class="small mut">효과: bin/kill.sh · bin/resume.sh 와 동일. 발동·해제는 텔레그램으로 알림됩니다.</p>
+    <div class="row"><button class="btn danger" id="killBtn" ${k?"disabled":""}>KILL 발동</button>
+    <button class="btn primary" id="resumeBtn" ${k?"":"disabled"}>KILL 해제</button></div></div>`;
+  h+=`<div class="card"><h2>범위 안내</h2><p class="small mut">1차 범위에서는 단계 재실행·수동 루틴 실행 버튼을 제공하지 않습니다.<br>
+    <span class="small">bin/run.sh · bin/retry.sh 는 오케스트레이터 AI 에이전트 기동이 필요한 껍데기라 대시보드에서 직접 실행할 수 없습니다. 필요하면 채팅으로 요청하세요.</span></p></div>`;
+  el.innerHTML=h;
+  const kb=$("#killBtn");
+  if(kb)kb.onclick=()=>modal("KILL 발동","모든 루틴 실행을 즉시 중단합니다. 계속할까요?",
+    `<input type="text" id="mField" placeholder="사유 (필수)" style="width:100%">`,
+    reason=>{if(!reason.trim()){toast("사유를 입력하세요");return false}
+      api("/api/kill",{method:"POST",body:JSON.stringify({reason})}).then(()=>{toast("KILL 발동됨");render()}).catch(e=>toast(e.message))});
+  const rb=$("#resumeBtn");
+  if(rb)rb.onclick=()=>modal("KILL 해제","킬스위치를 해제하고 루틴을 재개합니다.","",
+    async()=>{try{await api("/api/resume",{method:"POST",body:"{}"});toast("KILL 해제됨");render()}catch(e){toast(e.message)}},false);
+}
+
+const SCREENS={today:sToday,queue:sQueue,reports:sReports,integrations:sIntegrations,content:sContent,ads:sAds,settings:sSettings,control:sControl};
+async function render(){
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.s===SCREEN));
+  const el=$("#main");el.innerHTML="<p class='mut'>불러오는 중…</p>";
+  try{await SCREENS[SCREEN](el)}catch(e){el.innerHTML=`<div class="warn">오류: ${esc(e.message)}</div>`}
+}
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{SCREEN=b.dataset.s;render()});
+setInterval(()=>{const d=new Date();
+  $("#clock").textContent=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")+" KST"},1000);
+async function boot(){try{await loadBiz();await render()}catch(e){if(e.message!=="401")$("#main").innerHTML=`<div class="warn">오류: ${esc(e.message)}</div>`}}
+if(!TOKEN)gate();else boot();
+</script>
+</body>
+</html>

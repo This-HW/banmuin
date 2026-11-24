@@ -97,8 +97,14 @@ engagement 트리거는 `skills/engagement/SKILL.md`의 시작 절차를 따른�
   설계한다 (SPEC 18장 #12).
 
 ### weekly_calendar (일요일 20:00)
-- 다음 주 `businesses/<slug>/content_calendar.md` 생성
-- `businesses/<slug>/config.yaml`의 `channels.<채널>.max_per_day` 빈도 상한 준수
+1. 주간 성과 요약 생성: analytics 스킬이 지난주 데이터를 분석해
+   `businesses/<slug>/reports/weekly/YYYY-MM-DD.md`를 만든다 (SPEC 12.2a).
+   상위 성과 콘텐츠 3건 + 주간 실험 결정(유지/중단/수정/실험) + 다음 주 기획 입력을 포함한다.
+   데이터가 없어도(첫 운영 등) 파일은 만들고 "기준 데이터 축적 중"을 명시한다.
+2. 다음 주 `businesses/<slug>/content_calendar.md` 생성 — 주간 성과 요약의 "다음 주 기획 입력"을
+   읽고, 지난주에 잘된 주제·형식·소구점을 다음 주 기획의 출발점으로 삼는다 (SPEC 6.1 위너 루프).
+   각 항목에 목적(인지도/전환/신뢰)과 판단 지표를 선언한다.
+3. `businesses/<slug>/config.yaml`의 `channels.<채널>.max_per_day` 빈도 상한 준수
 
 ## 출력 (산출물 경로)
 - `businesses/<slug>/reports/daily/YYYY-MM-DD.md` — 아침 리포트

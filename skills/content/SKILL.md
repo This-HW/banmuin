@@ -12,6 +12,9 @@ description: 콘텐츠 마케터. 주간 캘린더 또는 목표 한 줄에서 �
 ## 입력
 - `businesses/<slug>/content_calendar.md`의 당일 분량, 또는
 - "목표 한 줄" (예: 이번 주 신상품 알리기 — 실제 목표는 캘린더·대표 지시에서 가져오며, 예시는 지어내지 않는다)
+- 주간 기획 시: `businesses/<slug>/reports/weekly/YYYY-MM-DD.md`의 "상위 성과 콘텐츠"와
+  "다음 주 기획 입력" (SPEC 6.1 위너 루프). 지난주에 잘된 주제·형식·소구점을 다음 주 기획의
+  출발점으로 삼는다. 파일이 없으면(첫 운영 등) "기준 데이터 축적 중"으로 기록하고 목표 한 줄로 기획한다.
 
 ## 파이프라인
 ```
@@ -26,7 +29,9 @@ description: 콘텐츠 마케터. 주간 캘린더 또는 목표 한 줄에서 �
   - 스레드 (단독 또는 2~4개 연결 묶음)
   - 카드뉴스 (HTML 렌더링용 원고 + 배경 이미지)
   - 숏폼 (장면표 + 생성된 영상 파일)
-- `businesses/<slug>/state/queue.jsonl` — 게이트 통과 건을 `queued` 상태로 등록
+- `businesses/<slug>/state/queue.jsonl` — 게이트 통과 건을 `queued` 상태로 등록.
+  큐 레코드에는 캘린더에 선언된 목적을 `purpose` 필드(인지도/전환/신뢰/null)에 기록한다
+  (SPEC 10.2). 목적이 없으면 `null`로 기록하고, analytics가 주간 순위에서 제외한다.
 - `businesses/<slug>/drafts/YYYY-MM-DD/` — 게이트 미통과·보류 건 보관.
   초안 저장 규약 (SPEC 20.10): `<날짜>/<draft_id>/` 디렉토리에 `meta.json` + `content.md`.
   `<draft_id>` = `<YYYYMMDD>-<channel>-<seq>` (예: `20261002-naver_blog-01`).
@@ -35,25 +40,31 @@ description: 콘텐츠 마케터. 주간 캘린더 또는 목표 한 줄에서 �
 - `businesses/<slug>/logs/YYYY-MM-DD/quality_*.md` — 검수 리포트
 
 ## 핵심 규칙
-1. **채널별 포맷을 준수한다.** `references/blog_format.md`, `threads_format.md`,
+1. **목적을 먼저 선언한다 (purpose-first, SPEC 6.1).** 캘린더의 각 항목은 제작 전에
+   목적 3종 중 하나를 선언하고, 목적에 맞는 판단 지표를 적는다.
+   - `인지도`: 판단 지표는 조회수·노출
+   - `전환`: 판단 지표는 저장·공유·클릭·문의 수
+   - `신뢰`: 판단 지표는 저장·댓글·재방문
+   목적이 없거나 목적과 지표가 맞지 않는 항목은 제작하지 않는다.
+2. **채널별 포맷을 준수한다.** `references/blog_format.md`, `threads_format.md`,
    `cardnews_format.md`, `shorts_format.md`의 체크리스트를 제작 전에 읽는다.
-2. **품질 게이트는 1차(규칙) → 2차(AI) 순서로 통과해야 한다.**
+3. **품질 게이트는 1차(규칙) → 2차(AI) 순서로 통과해야 한다.**
    검수 항목과 판정 기준은 `references/quality_checklist.md`.
    초안 생성 시 `meta.json`을 `status=작성중|게이트대기`·`gate.result=null`로 기록하고,
    게이트 수행 후 `status`와 `gate` (`result=통과|수정요청|폐기`, `reason`) 를 업데이트한다
    (SPEC 20.10 초안 저장 규약. 대시보드 3차 "콘텐츠" 화면의 데이터 근거).
-3. **2차 검수에서 수정 판정 시 최대 2회까지 수정 후 재검수한다**
+4. **2차 검수에서 수정 판정 시 최대 2회까지 수정 후 재검수한다**
    (`businesses/<slug>/config.yaml`의 `quality_gate.max_rework`). 2회 초과 또는 폐기 판정 시
    `businesses/<slug>/drafts/`에 보관하고 리포트에 기록한다.
-4. **한글 텍스트를 이미지 생성 모델에 직접 만들지 않는다.**
+5. **한글 텍스트를 이미지 생성 모델에 직접 만들지 않는다.**
    카드뉴스 문구는 `references/cardnews_template.html`에 얹어 Aside 작업
    (`playbooks/cardnews-render.task.md`)으로 PNG 렌더링한다.
-5. **브랜드보이스를 준수한다.** `businesses/<slug>/knowledge/06_브랜드보이스.md`의 말투·문체·금지어·이모지 정책.
-6. **근거 없는 주장을 하지 않는다.** 모든 효능·차별점 주장은
+6. **브랜드보이스를 준수한다.** `businesses/<slug>/knowledge/06_브랜드보이스.md`의 말투·문체·금지어·이모지 정책.
+7. **근거 없는 주장을 하지 않는다.** 모든 효능·차별점 주장은
    `businesses/<slug>/knowledge/01_상품서비스.md`·`05_후기_사례.md`와 대조한다. 없는 경험은 지어내지 않는다.
-7. **에셋 관리:** 생성 프롬프트는 sidecar JSON(`*.prompt.json`)으로 함께 저장.
+8. **에셋 관리:** 생성 프롬프트는 sidecar JSON(`*.prompt.json`)으로 함께 저장.
    90일 후 압축 아카이브, 재사용 에셋은 `businesses/<slug>/assets/library/`에 복사.
-8. **숏폼 핸드오프:** Higgsfield MCP로 생성 → 파일 다운로드 → `businesses/<slug>/assets/YYYY-MM-DD/` 저장
+9. **숏폼 핸드오프:** Higgsfield MCP로 생성 → 파일 다운로드 → `businesses/<slug>/assets/YYYY-MM-DD/` 저장
    → YouTube 업로드용으로 큐에 등록. 자막 편집은 별도 도구에서.
 
 ## 사업 단계별 톤
@@ -64,7 +75,7 @@ description: 콘텐츠 마케터. 주간 캘린더 또는 목표 한 줄에서 �
   미완성의 공개는 허용하되, 허위 과장(미출시 기능을 출시된 것처럼)은 금지한다.
 - `사전예약중`: 예약 유도 CTA를 포함한다 (랜딩 페이지·대기리스트 등록 경로 안내).
   품질 게이트와 근거 대조 규칙은 운영중과 동일하게 적용한다.
-- `운영중`: 기존 규칙 그대로 (위 핵심 규칙 1–8).
+- `운영중`: 기존 규칙 그대로 (위 핵심 규칙 1–9).
 
 ## 참조 파일
 - `references/blog_format.md` / `threads_format.md` / `cardnews_format.md` / `shorts_format.md`

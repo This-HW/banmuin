@@ -400,11 +400,12 @@ async function sAds(el){
 }
 
 /* ---------- 화면 7: 설정 (4차) ---------- */
-const POLICY_KEYS=["channels.meta_ads.mode","customer_care.mode","repurchase.d7_channel","publishing.require_approval"];
+const POLICY_KEYS=["channels.meta_ads.mode","customer_care.mode","repurchase.d7_channel","publishing.require_approval","influencer.enabled"];
 function readSettingInput(inp){
   const t=inp.dataset.t;
   if(t==="bool")return inp.checked;
   if(t==="int"){if(inp.value==="")return undefined;const n=parseInt(inp.value,10);return isNaN(n)?undefined:n}
+  if(t==="nullint"){if(inp.value==="")return null;const n=parseInt(inp.value,10);return isNaN(n)?undefined:n}
   if(t==="intlist")return inp.value.split(",").map(x=>parseInt(x.trim(),10)).filter(x=>!isNaN(x));
   if(t==="nullstr")return inp.value==="null"?null:inp.value;
   return inp.value;
@@ -417,7 +418,7 @@ async function sSettings(el){
   const s=await api("/api/settings");
   const ch=s.channels||{},bd=s.budgets||{},cc=s.customer_care||{},rp=s.repurchase||{},
         qg=s.quality_gate||{},rt=s.retry||{},re=s.retention||{},nt=s.notifications||{},
-        pb=s.publishing||{};
+        pb=s.publishing||{},ct=s.content||{},inf=s.influencer||{};
   const v=x=>x??"";
   let h=`<div class="card"><h2>설정 <span class="small mut">config.yaml 편집</span></h2>
     <p class="small mut">예산 캡·게이트 임계값의 정본은 knowledge/08_승인기준.md입니다.
@@ -434,10 +435,16 @@ async function sSettings(el){
   h+=`</table></div>`;
   h+=`<div class="card"><h2>예산 (월·일 상한, 원)</h2><div class="row">
     <label class="small">Meta 일 상한 <input type="number" data-k="budgets.meta_daily_cap_krw" data-t="int" value="${v(bd.meta_daily_cap_krw)}" min="0" style="width:110px"></label>
-    <label class="small">Higgsfield 월 상한 <input type="number" data-k="budgets.higgsfield_monthly_krw" data-t="int" value="${v(bd.higgsfield_monthly_krw)}" min="0" style="width:110px"></label></div></div>`;
+    <label class="small">Higgsfield 월 상한 (비우면 상한 없음) <input type="number" data-k="budgets.higgsfield_monthly_krw" data-t="nullint" value="${v(bd.higgsfield_monthly_krw)}" min="0" style="width:110px"></label></div></div>`;
   h+=`<div class="card"><h2>자동화 정책 <span class="small mut">⚠️ 변경 시 2단계 확인</span></h2><div class="row">
     <label class="small">고객 응대 <select data-k="customer_care.mode" data-t="str"><option value="draft_only"${cc.mode==="draft_only"?" selected":""}>draft_only</option><option value="auto_send"${cc.mode==="auto_send"?" selected":""}>auto_send</option></select></label>
-    <label class="small">D+7 채널 <select data-k="repurchase.d7_channel" data-t="nullstr"><option value="null"${rp.d7_channel==null?" selected":""}>null (비활성)</option><option value="sms"${rp.d7_channel==="sms"?" selected":""}>sms</option><option value="alimtalk"${rp.d7_channel==="alimtalk"?" selected":""}>alimtalk</option><option value="dm"${rp.d7_channel==="dm"?" selected":""}>dm</option></select></label></div></div>`;
+    <label class="small">D+7 채널 <select data-k="repurchase.d7_channel" data-t="nullstr"><option value="null"${rp.d7_channel==null?" selected":""}>null (비활성)</option><option value="sms"${rp.d7_channel==="sms"?" selected":""}>sms</option><option value="alimtalk"${rp.d7_channel==="alimtalk"?" selected":""}>alimtalk</option><option value="dm"${rp.d7_channel==="dm"?" selected":""}>dm</option></select></label>
+    <label class="small">AI 표기 <select data-k="content.ai_attribution" data-t="str"><option value="off"${ct.ai_attribution==="off"||ct.ai_attribution==null?" selected":""}>off (표기 안 함)</option><option value="on"${ct.ai_attribution==="on"?" selected":""}>on (표기 붙임)</option></select></label></div></div>`;
+  h+=`<div class="card"><h2>인플루언서 협업 <span class="small mut">⚠️ 켜면 2단계 확인</span></h2><div class="row">
+    <label class="small"><input type="checkbox" data-k="influencer.enabled" data-t="bool" ${inf.enabled?"checked":""}> 인플루언서 협업 사용</label>
+    <label class="small">주간 신규 연락 상한 <input type="number" data-k="influencer.max_outreach_per_week" data-t="int" value="${v(inf.max_outreach_per_week)}" min="1" max="50" style="width:60px"></label>
+    <label class="small">답장 대기(일) <input type="number" data-k="influencer.reply_wait_days" data-t="int" value="${v(inf.reply_wait_days)}" min="1" max="30" style="width:60px"></label>
+    <label class="small">게시 대기(일) <input type="number" data-k="influencer.post_wait_days" data-t="int" value="${v(inf.post_wait_days)}" min="1" max="30" style="width:60px"></label></div></div>`;
   h+=`<div class="card"><h2>발행 승인 <span class="small mut">⚠️ 변경 시 2단계 확인</span></h2><div class="row">
     <label class="small"><input type="checkbox" data-k="publishing.require_approval" data-t="bool" ${pb.require_approval?"checked":""}> 발행 승인 필요</label>
     <span class="small mut">켜면 대시보드에서 승인한 항목만 발행됩니다 (기본값: 꺼짐=자동발행).<br>네이버 블로그(큐 기반 발행)에 적용됩니다.</span></div></div>`;
@@ -467,7 +474,7 @@ async function sSettings(el){
         toast("설정 저장됨");render()}catch(e){toast(e.message)}
     };
     if(updates.some(u=>POLICY_KEYS.includes(u.key)))
-      modal("정책 변경 확인","자동화 정책(광고 모드·고객 응대·D+7 채널·발행 승인)이 변경됩니다.<br>계속 저장할까요?","",()=>send(true),true);
+      modal("정책 변경 확인","자동화 정책(광고 모드·고객 응대·D+7 채널·발행 승인·인플루언서 협업)이 변경됩니다.<br>계속 저장할까요?","",()=>send(true),true);
     else send(false);
   };
 }

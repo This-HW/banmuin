@@ -13,6 +13,12 @@ publishing:
   require_approval: false         # false=자동발행(기본, 11.3 #1). true=대시보드 승인 필요.
                                   # true면 approved_at이 기록된 큐 레코드만 발행한다. 정책 변경 키 (2단계 확인)
 
+content:
+  ai_attribution: "off"           # off | on. AI 표기 옵션 (v1.12.0, HW 결정).
+                                  # on이면 AI로 만든 콘텐츠에 06_브랜드보이스.md의 "AI 표기" 문구를 붙인다.
+                                  # 문구가 없으면 기본 문구 "이 콘텐츠는 AI의 도움을 받아 제작되었습니다."를 쓴다.
+                                  # off면 표기를 붙이지 않는다 (기본값, 기존 동작 유지).
+
 channels:
   naver_blog: { enabled: true,  max_per_day: 1, publish_window: "09:00-11:00" }
   threads:    { enabled: true,  max_per_day: 3, api_limit_per_24h: 250 }
@@ -24,7 +30,10 @@ channels:
 
 budgets:
   meta_daily_cap_krw: 30000       # 미러. 정본: knowledge/08_승인기준.md
-  higgsfield_monthly_krw: 50000   # 실사업 확정 전까지 상한 유지 (18장 #4)
+  higgsfield_monthly_krw: null    # 상한 없음 (v1.12.0 폐지, 18장 #4).
+                                  # null이면 소재 생성 비용 상한을 두지 않는다.
+                                  # 대표가 원하면 금액(원)을 적어 상한을 둘 수 있다.
+                                  # 잔량은 analytics 스킬이 아침 리포트 비용 섹션에서 계속 모니터링한다.
 
 customer_care:
   mode: "draft_only"              # draft_only | auto_send. auto_send는 대표의 명시적 opt-in에서만 허용 (11.3 #4)
@@ -46,6 +55,12 @@ engagement:                       # SPEC 21장. 인스타그램 댓글→DM 자�
     dm_follow_request_template: "팔로우해주시면 정보를 보내드릴게요! ..."  # 미팔로워용 DM 본문
     check_interval_minutes: 30    # cron 스케줄과 일치시킬 것
     max_per_run: 20               # 1회 실행당 처리 상한 (과도 발송 방지)
+
+influencer:                       # SPEC 22장. 인플루언서 협업 관리 (선정·제안 초안·추적)
+  enabled: false                  # 기본 비활성. true는 대표의 명시적 opt-in에서만 허용
+  max_outreach_per_week: 5        # 주당 신규 연락 상한 (과도한 연락 방지)
+  reply_wait_days: 7              # 답장 대기 기한 (초과 시 재연락 후보로 보고)
+  post_wait_days: 7               # 제품 발송 후 게시 대기 기한 (초과 시 확인 요청)
 
 quality_gate:
   similarity_threshold: 0.80      # 미러. 정본: knowledge/08_승인기준.md

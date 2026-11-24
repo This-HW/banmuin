@@ -22,7 +22,7 @@
 
 ## 2. 모듈 목록과 책임
 
-### 2.1 `skills/` — 에이전트 역할 정의서 8종
+### 2.1 `skills/` — 에이전트 역할 정의서 9종
 
 Anthropic Agent Skills 표준 (`SKILL.md` + `references/`). 에이전트가 읽고 직접 실행한다.
 
@@ -33,9 +33,10 @@ Anthropic Agent Skills 표준 (`SKILL.md` + `references/`). 에이전트가 읽�
 | `content` | 콘텐츠 마케터. 블로그·Threads·카드뉴스·숏폼 4종 기획·제작, 1차(규칙)→2차(AI) 품질 게이트, 통과분 발행 큐 적재 |
 | `ads` | Meta 광고. 성과 조회·분석 + 캠페인 초안 생성. 집행은 config `meta_ads.mode=auto` 명시적 opt-in에서만 (기본값 draft_only) |
 | `customer-care` | 미답변 문의에 대한 FAQ 근거 답변 초안 작성. 발송은 config `customer_care.mode=auto_send` opt-in에서만 (기본값 draft_only) |
-| `analytics` | 성과 분석. 기간 비교표·변동 탐지(±20%), 아침 리포트 본문 생성 |
+| `analytics` | 성과 분석. 기간 비교표·변동 탐지(±20%), 아침 리포트 본문 생성, 주간 성과 요약(상위 성과 3건 + 유지/중단/수정/실험 결정) |
 | `pre-launch` | 런칭기 지원. 사업 단계별(아이디어/준비중/사전예약중) 파이프라인 — 시장조사·빌드인퍼블릭·대기리스트·베타테스터 모집 |
 | `engagement` | 인스타그램 댓글→DM 자동화 (SPEC §21). 30분 간격 폴링: 새 댓글 수집 → 공개 답글 → 팔로우 체크 → DM 발송. 기본 비활성(opt-in) |
+| `influencer` | 인플루언서 협업 관리 (SPEC §22). 선정(목적→정량 필터) · 제안 초안 · 추적 장부(`state/outreach.jsonl`) 유지. 일일 추적 체크 + 주간 선정. 기본 비활성(opt-in), 제안은 초안까지만 |
 
 ### 2.2 `playbooks/` — Aside 작업 지시서 3종
 
@@ -140,6 +141,9 @@ Playwright 코드는 작성·유지보수하지 않는다 (SPEC v1.2 결정).
 
 타임라인(06:30 기동): 수집 06:40 → 분석 07:00 → 제작 07:20 → 검수 08:00 → API 채널 발행 08:30 → 리포트 09:00.
 월요일 루틴에는 AEO 주간 측정 포함. 네이버 발행은 별도 09:00 트리거.
+06:40 수집 단계에는 인플루언서 추적 체크(§22.5)가 포함된다.
+일요일 20:00 weekly_calendar 트리거에는 주간 성과 요약 생성(§12.2a) 후 캘린더 생성과
+인플루언서 주간 선정 + 제안 초안(§22.6)이 포함된다.
 
 **engagement 트리거 (30분 간격, SPEC §21)** — 위 일일 파이프라인과 독립적으로 동작한다:
 
@@ -208,11 +212,13 @@ Playwright 코드는 작성·유지보수하지 않는다 (SPEC v1.2 결정).
 | `health.json` | 채널 세션/API 헬스체크 결과 (`at·trigger·channels{<채널>: {ok, detail}}`). 오케스트레이터가 매 루틴 시작 시 기록. 대시보드 2차 "연동 상태" 화면의 데이터 근거 (SPEC 20.10, v1.8) |
 | `engagement.json` | 댓글→DM 자동화 상태 (`last_check_at·reply_template_index`). 30분 간격 engagement 트리거가 갱신 (SPEC §21) |
 | `engagement_processed.jsonl` | 댓글당 처리 기록 (`comment_id·replied_at·follow_status·dm_sent·attempts·status`). 멱등성 근거 (SPEC §21) |
+| `outreach.jsonl` | 인플루언서 협업 전이 로그 (`creator_id·handle·event·at·note`). 상태 전이 시 append-only (SPEC §22) |
 
 그 외 사업별 런타임 경로: `businesses/<slug>/drafts/YYYY-MM-DD/` (게이트 미통과·발행 보류 초안 보관소),
 `businesses/<slug>/data/orders.csv` (D+7 재구매용 주문 데이터, 수동 입력),
+`businesses/<slug>/data/influencers.csv` (인플루언서 협업 명단, 대표 유지 — SPEC §22),
 `businesses/<slug>/logs/YYYY-MM-DD/` (단계별 JSONL, 90일 보관),
-`businesses/<slug>/reports/daily|research/`, `businesses/<slug>/assets/YYYY-MM-DD/` (90일 후 압축 아카이브).
+`businesses/<slug>/reports/daily|research|weekly/`, `businesses/<slug>/assets/YYYY-MM-DD/` (90일 후 압축 아카이브).
 
 **멱등성**: 멱등키 = `content_id:channel:date`. 같은 키로 `published`가 있으면 발행 스킵.
 의도적 재발행은 `--force`로만. 레코드 스키마는 SPEC 10.2 참조.
@@ -228,6 +234,7 @@ businesses/<slug>/
 │   └── content_calendar.md 주간 콘텐츠 캘린더
 ├── state/                 queue.jsonl / publish_log.jsonl / dead_letter.jsonl / scheduler.lock / KILL
 │                           / engagement.json / engagement_processed.jsonl / engagement.lock
+│                           / outreach.jsonl
 ├── drafts/YYYY-MM-DD/     게이트 미통과·발행 보류 초안
 ├── logs/YYYY-MM-DD/       단계별 실행 로그
 ├── reports/               daily/ · research/

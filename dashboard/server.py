@@ -50,7 +50,8 @@ TRIGGERS = [
 CHANNEL_KEYS = ["naver_blog", "threads", "instagram", "youtube", "meta_ads"]
 # 2단계 확인(confirmed:true)이 필수인 정책 변경 키
 POLICY_CONFIRM_KEYS = {"channels.meta_ads.mode", "customer_care.mode",
-                       "repurchase.d7_channel", "publishing.require_approval"}
+                       "repurchase.d7_channel", "publishing.require_approval",
+                       "influencer.enabled"}
 # POST /api/secrets가 저장할 수 있는 키 (연동 위자드 표의 6종)
 SECRET_WRITE_KEYS = ["TELEGRAM_BOT_TOKEN", "META_OAUTH_ACCESS_TOKEN",
                      "THREADS_ACCESS_TOKEN", "INSTAGRAM_ACCESS_TOKEN",
@@ -79,7 +80,17 @@ def validate_setting(key, value):
         return value in ("draft_only", "approval", "auto"), \
             "draft_only|approval|auto 중 하나여야 합니다."
     if key in ("budgets.meta_daily_cap_krw", "budgets.higgsfield_monthly_krw"):
-        return _is_int(value) and value >= 0, "0 이상 정수여야 합니다."
+        if key == "budgets.higgsfield_monthly_krw" and value is None:
+            return True, ""
+        return _is_int(value) and value >= 0, "0 이상 정수여야 합니다 (Higgsfield 월 상한은 null=상한 없음 허용)."
+    if key == "content.ai_attribution":
+        return value in ("off", "on"), "off|on 중 하나여야 합니다."
+    if key == "influencer.enabled":
+        return isinstance(value, bool), "bool이어야 합니다."
+    if key == "influencer.max_outreach_per_week":
+        return _is_int(value) and 1 <= value <= 50, "1~50 정수여야 합니다."
+    if key in ("influencer.reply_wait_days", "influencer.post_wait_days"):
+        return _is_int(value) and 1 <= value <= 30, "1~30 정수여야 합니다."
     if key == "customer_care.mode":
         return value in ("draft_only", "auto_send"), \
             "draft_only|auto_send 중 하나여야 합니다."
@@ -753,6 +764,9 @@ class Handler(BaseHTTPRequestHandler):
             out["channels"] = channels
         for section, keys in [
             ("budgets", ["meta_daily_cap_krw", "higgsfield_monthly_krw"]),
+            ("content", ["ai_attribution"]),
+            ("influencer", ["enabled", "max_outreach_per_week",
+                            "reply_wait_days", "post_wait_days"]),
             ("customer_care", ["mode"]),
             ("repurchase", ["d7_channel"]),
             ("publishing", ["require_approval"]),

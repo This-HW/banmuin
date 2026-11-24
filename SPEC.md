@@ -1,4 +1,4 @@
-# AI 마케팅 자동화 시스템 — 상세 스펙 v1.11.0
+# AI 마케팅 자동화 시스템 — 상세 스펙 v1.12.0
 
 > 작성일: 2026-09-29
 > 기반: Ref_Agent_System_2 분석 (마케팅 문구 제외, 실제 동작 가능한 것만 추출)
@@ -203,7 +203,7 @@ ai-marketing-agent/                    # 공개 코어 (Git)
   docs/
     agent-compatibility.md             # 에이전트 최소 요구사항·교체 지점
     onboarding.md                      # 새 사업 온보딩 절차
-  skills/                              # 공용 스킬 8종 (사업 데이터 없음)
+  skills/                              # 공용 스킬 9종 (사업 데이터 없음)
     orchestrator/SKILL.md
     engagement/SKILL.md                # §21 댓글→DM (30분 트리거)
     pre-launch/SKILL.md                # 런칭기 지원 (1.7 사업 단계)
@@ -254,6 +254,7 @@ ai-marketing-agent/                    # 공개 코어 (Git)
         engagement.lock                # engagement 트리거 전용 락 (stale 2시간. 21.4 [1])
         engagement.json                # 댓글→DM 상태 (21.7)
         engagement_processed.jsonl     # 댓글당 처리 기록 (21.4 [5-6])
+        outreach.jsonl                 # 인플루언서 협업 전이 로그 (22.7)
         notification_queue.jsonl       # 대시보드 제어 알림 적재소 (20.5)
         health.json                    # 채널 헬스체크 결과 (20.10)
         last_run.json                  # 마지막 루틴 실행 결과 (20.3)
@@ -292,7 +293,7 @@ channels:
                                                               # auto는 대표의 명시적 opt-in (11.3 #3)
 budgets:
   meta_daily_cap_krw: 30000       # 08_승인기준.md 와 동일 값 유지 (정본은 08)
-  higgsfield_monthly_krw: 50000   # 실사업 확정 전까지 상한 유지 (18장 #4)
+  higgsfield_monthly_krw: null    # 상한 없음 (v1.12.0 폐지, 18장 #4). 대표가 원하면 금액 설정 가능
 customer_care:
   mode: "draft_only"              # draft_only | auto_send. auto_send는 대표의 명시적 opt-in (11.3 #4)
 repurchase:
@@ -487,6 +488,18 @@ businesses/*
   - 대기리스트는 개인정보를 포함하므로 Git에 커밋하지 않음 (3.4)
 - 상세 행동 정의는 `skills/pre-launch/SKILL.md`
 
+### 5.9 influencer (인플루언서 협업 관리자) [추가] ← v1.12.0 신규
+- 입력: `data/influencers.csv`(크리에이터 명단), `state/outreach.jsonl`(추적 장부)
+- 출력: 제안 초안(`drafts/YYYY-MM-DD/outreach_<creator_id>.md`), 상태 전이 기록, 일일 추적 체크 결과(아침 리포트)
+- 핵심 규칙:
+  - 기본 비활성 (`influencer.enabled=false`). 대표의 명시적 opt-in에서만 동작
+  - 제안은 초안까지만. 발송은 대표가 직접 한다
+  - 상태 전이는 앞으로만 (선정→연락대기→연락완료→답장→협의중→제품발송→게시대기→게시완료, 거절/중단은 종료)
+  - 외부 사실(답장·배송·게시)은 대표가 알려준 것만 기록, 지어내지 않는다
+  - 목적별 지표로 순위 (인지도→조회수, 전환→저장·공유율). 팔로워 수만으로 선정하지 않는다
+  - 주간 신규 연락은 `max_outreach_per_week`(기본 5) 상한 준수
+- 상세 행동 정의는 `skills/influencer/SKILL.md`, 정본은 SPEC 22장
+
 ---
 
 ## 6. 콘텐츠 파이프라인 상세
@@ -536,6 +549,14 @@ businesses/*
 - 생성 프롬프트는 sidecar JSON으로 함께 저장 (`*.prompt.json`)
 - 90일 후 압축 아카이브 (`businesses/<slug>/assets/archive/`), sidecar JSON은 유지
 - 재사용 가능 에셋은 `businesses/<slug>/assets/library/` 에 복사 (배경, B-roll 등)
+
+### 6.7 AI 표기 [추가] ← v1.12.0 신규
+- `config.yaml`의 `content.ai_attribution`으로 결정한다 (`off` | `on`, 기본값 `off`).
+- `on`이면 AI로 만든 콘텐츠에 `knowledge/06_브랜드보이스.md`의 "AI 표기" 문구를 붙인다.
+  문구가 비어 있으면 기본 문구 "이 콘텐츠는 AI의 도움을 받아 제작되었습니다."를 쓴다.
+- 표기 위치: 블로그 글 말미 · 스레드 마지막 포스트 · 카드뉴스 마지막 장 · 숏폼 설명란.
+- `off`면 표기를 붙이지 않는다 (기본값, 기존 동작 유지).
+- 품질 게이트 2차 검수에서 표기 여부를 확인한다 (`skills/content/references/quality_checklist.md`).
 
 ---
 
@@ -601,7 +622,7 @@ businesses/*
 | 시각 | 단계 | 담당 | 타임아웃 | 치명 |
 |---|---|---|---|---|
 | 06:30 | 락 획득, KILL 확인, 헬스체크 (채널 세션/API 상태) + `state/health.json` 기록 | orchestrator | 10분 | 치명 |
-| 06:40 | 수집: Meta 성과(ads 스킬에 위임), 전날 반응(채널별), 미답변 문의 | ads·research·analytics·care | 15분 | 비치명 |
+| 06:40 | 수집: Meta 성과(ads 스킬에 위임), 전날 반응(채널별), 미답변 문의, 인플루언서 추적 체크(§22.5) | ads·research·analytics·care·influencer | 15분 | 비치명 |
 | 07:00 | 분석 리포트 생성 | analytics | 15분 | 비치명 |
 | 07:20 | 콘텐츠 제작 (4종) | content | 40분 | 비치명 |
 | 08:00 | 품질 게이트 | content | 20분 | 비치명 |
@@ -609,6 +630,8 @@ businesses/*
 | 09:00 | 아침 리포트 생성·발송 | orchestrator | 10분 | 비치명 |
 
 - 월요일 루틴에는 AEO 주간 측정 포함 (5.3)
+- 일요일 20:00 주간 캘린더 트리거에는 인플루언서 주간 선정 + 제안 초안(§22.6)이 포함된다.
+  캘린더 생성과 같은 트리거에서 수행하며, 비치명 단계다.
 - 스케줄러는 cron이 주 수단이다.
 - 헬스체크 단계는 결과와 무관하게 `state/health.json`을 먼저 기록한 뒤 실패 시 루틴을 중단한다
   (SPEC 20.10 — 대시보드 2차 "연동 상태" 화면의 근거. 스키마는 20.10, Git 추적 제외)
@@ -871,7 +894,7 @@ draft → queued → publishing → published
 |---|---|---|
 | 0 | 사전 준비물 (7.6 체크리스트) | 8개 항목 완료 |
 | 1 | 지식파일 템플릿 11종 (`templates/knowledge/`, 00~10) | 스키마대로 작성, Git 커밋 |
-| 2 | 스킬 8종 정의 | SKILL.md + references/. 드라이런으로 단독 실행 성공 |
+| 2 | 스킬 9종 정의 | SKILL.md + references/. 드라이런으로 단독 실행 성공 |
 | 3 | 사업 설정 양식 (`templates/config.yaml`) + CLI 껍데기 | `bin/run.sh --business <slug> --dry-run` 실행 성공 |
 | 4 | Meta MCP 연결 | 성과 조회, 캠페인 초안 생성 (상태 확인 후 active면 즉시 일시정지) |
 | 5 | Threads/IG/YouTube API 연결 | 채널별 테스트 발행 1건 후 삭제 |
@@ -898,7 +921,7 @@ draft → queued → publishing → published
 | 1 | 광고 자동 집행 | 결정: 모드 3종. `draft_only`(기본, 읽기+초안만) · `approval`(건별 승인, v1.10.6) · `auto`(명시적 opt-in). `approval`이면 일시정지 캠페인 + `state/ad_drafts.jsonl` 초안 기록 후 대시보드 승인 건만 집행. `auto` 시에도 일예산 캡 + 24시간 모니터링 |
 | 2 | 고객 응대 메시지 자동 발송 | 결정: 명시적 opt-in (`customer_care.mode=auto_send`). 기본값 `draft_only`(초안까지만) |
 | 3 | 재구매 메시지 채널 | 결정: config `repurchase.d7_channel` (`null` \| `sms` \| `alimtalk` \| `dm`). 기본값 `null`(비활성). 발송은 채널 연동 후 별도 승인 |
-| 4 | Higgsfield 유료 크레딧 | 실사업 확정 시 월 예산 확정 (현재 상한 50,000원 유지) |
+| 4 | Higgsfield 유료 크레딧 | 결정 (2026-11-24, HW "소재 상한 폐지"): **월 상한 폐지**. `budgets.higgsfield_monthly_krw=null`(상한 없음)이 기본값. 대표가 원하면 금액을 적어 상한을 둘 수 있다. 잔량은 analytics 스킬이 아침 리포트 비용 섹션에서 계속 모니터링한다. (이전: 실사업 확정 시 월 예산 확정, 상한 50,000원 유지) |
 | 5 | 한 사업 내 다계정 확장 | 미결정 — 사업별 채널당 1계정 유지. 다사업(`businesses/<slug>/`)은 v1.3에서 지원 |
 | 6 | D+7 재구매 메시지 발동 트리거 | 결정 (2026-10-04): A안(수동 CSV)으로 구현.
   매일 루틴 수집 단계(06:40)에 편입. `data/orders.csv`에서 구매일 == 오늘-7일 ·
@@ -922,6 +945,9 @@ draft → queued → publishing → published
 | 14 | 수동 루틴 실행·단계 재실행 UI | 결정 (2026-10-05): 채팅 방식 유지. `bin/run.sh`·`bin/retry.sh`는
   AI 에이전트 기동용 껍데기라 대시보드 버튼 하나로 실행하려면 오케스트레이터
   실행 구조 자체를 바꿔야 한다. 구조 변경 전까지는 채팅으로 재실행한다 |
+| 15 | 인플루언서 마케팅 | 결정 (2026-11-24, HW "인플루언서도 진행"): 스펙 §22로 추가.
+  선정·제안 초안·추적 장부(`state/outreach.jsonl`) + 명단(`data/influencers.csv`).
+  기본 비활성(opt-in). 제안은 초안까지만, 발송은 대표 직접. 탐색 자동화는 별도 스펙으로 분리 |
 
 ---
 
@@ -1045,6 +1071,15 @@ draft → queued → publishing → published
   아티팩트에 화면 6·액션 2종 적용, 실검증 통과.
   Browser-verified 검수 통과 (목록·필터·상세·게이트 사유·구 초안·모바일).
   구현 중 발견: `integration_status` docstring 들여쓰기 SyntaxError 1건 수정.
+- v1.12.0 (2026-11-24): 강민 자료 후속 3건 적용 (HW 지시 "인플루언서도 진행 / 소재 상한 폐지 / AI 표기는 선택 가능한 옵션으로 진행하자").
+  ① 인플루언서 마케팅 (§22 신설): 선정·제안 초안·추적 장부(`state/outreach.jsonl`) + 명단(`data/influencers.csv`).
+  일일 추적 체크를 main 루틴 06:40 수집 단계에, 주간 선정 + 제안 초안을 weekly_calendar 트리거에 편입.
+  기본 비활성(opt-in), 제안은 초안까지만, 발송은 대표 직접. §5.9·§8.2·§10·§18 #15 추가.
+  ② 소재 상한 폐지: `budgets.higgsfield_monthly_krw` 기본값 `null`(상한 없음). 18 #4 결정으로 변경.
+  템플릿 config + 샘플 사업 3곳 + 08_승인기준.md + §3 + §20.10 현행화. 잔량은 아침 리포트에서 계속 모니터링.
+  ③ AI 표기 옵션: `content.ai_attribution` 토글 추가 (기본값 `off`). `on`이면 06_브랜드보이스.md의 "AI 표기"
+  문구(없으면 기본 문구)를 콘텐츠 끝에 붙인다. content 스킬 규칙 10 + 품질 체크리스트 2차 검수 항목 추가.
+  18 #4·#15, 20.10 설정표 갱신.
 - v1.11.0 (2026-11-24): 마케팅 엔지니어 자료 3건(Lafferty·Hada 100배 실험·강민 "마케터 8명이 하던 일") 적용 (HW 지시 "이 내용 우리 마케팅자동화에 적용 가능한거 있으면 적용해").
   §6.1 목적 우선(purpose-first): 캘린더 각 항목이 목적(인지도/전환/신뢰)과 판단 지표를 먼저 선언한다. §6.1 위너 루프: 일요일 20:00 캘린더 생성 전 analytics가 주간 성과 요약을 만들고, content는 상위 성과에서 다음 주 소재를 도출한다.
   §12.2a 주간 성과 요약 신설 (`reports/weekly/YYYY-MM-DD.md`): 상위 성과 콘텐츠 3건 + 주간 실험 결정(유지/중단/수정/실험 + 근거) + 다음 주 기획 입력.
@@ -1613,7 +1648,10 @@ businesses/<slug>/drafts/<YYYY-MM-DD>/<draft_id>/
 | `channels.<ch>.max_per_day` | int 0~50 |
 | `channels.naver_blog.publish_window` | `^\d{2}:\d{2}-\d{2}:\d{2}$` |
 | `channels.meta_ads.mode` | `draft_only\|approval\|auto` (2단계 확인) |
-| `budgets.meta_daily_cap_krw`·`budgets.higgsfield_monthly_krw` | int ≥ 0 |
+| `budgets.meta_daily_cap_krw`·`budgets.higgsfield_monthly_krw` | int ≥ 0 · `higgsfield_monthly_krw`는 `null`(상한 없음) 허용 (v1.12.0) |
+| `content.ai_attribution` | `off\|on` (v1.12.0) |
+| `influencer.enabled` | bool (2단계 확인, v1.12.0) |
+| `influencer.max_outreach_per_week`·`influencer.reply_wait_days`·`influencer.post_wait_days` | int ≥ 1 (v1.12.0) |
 | `customer_care.mode` | `draft_only\|auto_send` (2단계 확인) |
 | `repurchase.d7_channel` | `null\|sms\|alimtalk\|dm` (2단계 확인) |
 | `publishing.require_approval` | bool (2단계 확인) |
@@ -1962,3 +2000,121 @@ Threads API(`graph.threads.net`)에는 DM 엔드포인트와 메시징 웹훅이
 인앱 DM은 존재하지만 프로그래밍으로 접근할 수 없다.
 따라서 댓글→DM 자동화는 Threads에서 기술적으로 불가하다.
 공개 답글 자동화까지만 필요하다면 별도 스펙으로 분리한다.
+
+---
+
+## 22. 인플루언서 마케팅 [추가] ← v1.12.0 신규
+
+### 22.1 개요
+
+브랜드와 협업할 크리에이터를 선정하고, 제안 초안을 만들고, 협업이 끝날 때까지
+추적하는 기능. 강민, "마케터 8명이 하던 일을 혼자 하게 되기까지"(2026)의 교훈을 따른다.
+
+- **추적이 중심이다.** "연락과 트래킹에 손이 가장 많이 갑니다. 크리에이터 탐색은
+  한 번 하면 끝나지만, 소통과 트래킹은 캠페인이 끝날 때까지 매일 이어집니다."
+  이 장의 가치는 섭외가 아니라 **아무도 빠지지 않는 추적 장부**다.
+- **선정은 목적부터.** 인지도가 목적이면 조회수, 구매 전환이 목적이면 저장·공유 같은
+  반응률을 본다. 팔로워 수는 가장 덜 중요한 지표다.
+- **정량 필터 후 정성 분석.** 정량으로 1차 필터링하고, 정성 분석은 답장한
+  크리에이터에 한해 진행한다.
+- **제안은 초안까지만.** 발송은 대표가 직접 한다. 이 스킬은 발송하지 않는다.
+
+### 22.2 전제 조건 (외부 의존)
+
+| # | 항목 | 비고 |
+|---|---|---|
+| 1 | 크리에이터 명단 (`data/influencers.csv`) | 대표가 유지한다. 양식은 `templates/data/influencers.csv`. 에이전트는 상태를 갱신하고, 외부 사실은 대표가 알려준다 |
+| 2 | config `influencer.enabled=true` | 기본값 `false`(비활성). 대표의 명시적 opt-in에서만 동작한다 |
+
+- 인플루언서 탐색·연락에 쓸 공식 API는 아직 없다. 명단은 대표가 직접 채우거나
+  customer-research 스킬의 조사 결과를 옮겨 만든다. 탐색 자동화는 별도 스펙으로 분리한다.
+
+### 22.3 설정 (config.yaml)
+
+```yaml
+influencer:
+  enabled: false                  # 기본 비활성. true는 대표의 명시적 opt-in
+  max_outreach_per_week: 5        # 주당 신규 연락 상한 (과도한 연락 방지)
+  reply_wait_days: 7              # 답장 대기 기한 (초과 시 재연락 후보로 보고)
+  post_wait_days: 7               # 제품 발송 후 게시 대기 기한 (초과 시 확인 요청)
+```
+
+### 22.4 상태 전이 (정본)
+
+| 상태 | 의미 | 다음 상태 |
+|---|---|---|
+| `선정` | 명단에 있고 정량 필터를 통과함 | `연락대기` |
+| `연락대기` | 제안 초안 완성, 대표의 발송 대기 | `연락완료` |
+| `연락완료` | 제안 발송됨 (대표가 확인) | `답장` / `거절` |
+| `답장` | 크리에이터가 답장함 | `협의중` / `거절` |
+| `협의중` | 조건·일정 협의 중 | `제품발송` / `거절` / `중단` |
+| `제품발송` | 제품 발송됨 | `게시대기` |
+| `게시대기` | 게시 약속일 대기 중 | `게시완료` / `중단` |
+| `게시완료` | 게시됨 + 요청 장면 포함 확인됨 | (종료) |
+| `거절` | 크리에이터가 거절함 | (종료) |
+| `중단` | 대표 또는 크리에이터가 중단함 | (종료) |
+
+- 상태 전이는 **앞으로만** 진행한다. 뒤로 돌아가지 않는다.
+- 외부 사실(답장 도착·배송 도착·게시 완료)은 **대표가 알려준다** (채팅 또는 CSV 직접 수정).
+  에이전트는 대표의 말을 근거로 장부를 갱신하고, 지어내지 않는다.
+- 전이표에 없는 점프(예: `선정`에서 바로 `제품발송`)는 하지 않는다.
+  중간 단계가 생략된 거면 대표에게 중간 사실을 확인하고 순서대로 기록한다.
+- `거절`과 `중단`을 구분한다. `거절`은 크리에이터의 거절, `중단`은 우리의 판단 또는
+  대표·크리에이터의 중단이다.
+
+### 22.5 일일 추적 체크 (main 트리거, 06:40 수집 단계에 편입 — 비치명)
+
+1. `data/influencers.csv`를 읽는다. 파일이 없으면 "협업 명단 없음"으로 기록하고 종료한다.
+2. 진행 중인 건(`연락완료`·`답장`·`협의중`·`제품발송`·`게시대기`)마다 기한을 확인한다:
+   - `연락완료` 후 `reply_wait_days`(기본 7일) 답장 없음 → **재연락 후보**로 아침 리포트에 기록한다.
+     재연락 자체는 하지 않는다. 대표가 결정한다.
+   - `제품발송` 후 `post_wait_days`(기본 7일) 게시 없음 → **게시 확인 요청**으로 아침 리포트에 기록한다.
+   - `게시대기`에서 `agreed_post_date`가 지남 → **약속일 경과**로 아침 리포트에 기록한다.
+3. 기한 초과 건이 있으면 텔레그램으로 알린다 (아침 리포트 발송 시 함께 전달).
+4. 기한 초과가 없어도 진행 중 건수를 아침 리포트에 한 줄로 기록한다.
+
+### 22.6 주간 선정 + 제안 초안 (weekly_calendar 트리거, 일요일 20:00 — 비치명)
+
+1. `data/influencers.csv`에서 `status=선정`인 크리에이터를 읽는다.
+2. 목적별 지표로 순위를 매긴다 (인지도→`avg_views` 내림차순, 전환→`save_share_rate` 내림차순).
+   지표가 비어 있는 크리에이터는 순위에서 제외하고 "지표 미확인"으로 따로 적는다.
+3. 상위 `max_outreach_per_week`(기본 5)건까지 제안 초안을 만든다:
+   - 초안 경로: `businesses/<slug>/drafts/YYYY-MM-DD/outreach_<creator_id>.md`
+   - 초안 내용: 제안 메일 본문 (브랜드보이스 준수, `knowledge/01_상품서비스.md`·`05_후기_사례.md` 근거),
+     크리에이터 정보, 목적, 제안 조건(제품 제공·게시 일정 — 대표는 초안에서 확인하고 정한다).
+   - 초안을 만들면 CSV 상태를 `선정` → `연락대기`로 갱신하고, `outreach.jsonl`에 `draft` 이벤트를 추가한다.
+4. 답장한 크리에이터(`status=답장`)가 있으면 정성 분석을 한다:
+   크리에이터의 최근 콘텐츠를 확인하고 브랜드와의 적합성을 한 줄로 기록한다.
+   적합하지 않으면 `중단`으로 기록하고 사유를 적는다.
+5. 이번 주 선정·초안 결과를 주간 성과 요약(`reports/weekly/`)에 한 단락으로 기록한다
+   (analytics 스킬이 합친다 — influencer 스킬은 결과를 `logs/`에 남긴다).
+
+### 22.7 상태 파일
+
+| 파일 | 스키마 | 비고 |
+|---|---|---|
+| `state/outreach.jsonl` | `{"creator_id": "<id>", "handle": "<핸들>", "event": "draft\|sent\|replied\|negotiating\|shipped\|waiting_post\|posted\|declined\|stopped", "at": "<KST ISO>", "note": "<한 줄 메모>"}` | 상태 전이 시 append-only로 한 줄 추가. `event`는 22.4 상태와 1:1 대응 |
+| `data/influencers.csv` | `creator_id,handle,platform,followers,avg_views,save_share_rate,purpose,status,contacted_at,replied_at,shipped_at,agreed_post_date,posted_at,post_url,notes` | 크리에이터 명단 (정본). 대표는 유지, 에이전트는 상태 갱신 |
+
+- `state/outreach.jsonl`은 Git 추적 제외 (10.3). 보관 기간 90일.
+- `data/influencers.csv`는 사업 데이터로 Git 추적 제외 (businesses/는 private).
+
+### 22.8 대시보드 (향후)
+
+- 설정 화면(20.10 4차) 화이트리스트에 `influencer.*`를 추가한다.
+  `enabled`는 정책 변경 키로 2단계 확인을 요구한다.
+- (선택) 인플루언서 협업 현황: 상태별 진행 건수·기한 초과 건.
+- 이 장(22)은 백엔드 설계까지다. 대시보드는 구현 단계에서 20.10에 추가한다.
+
+### 22.9 구현 순서
+
+| 순서 | 작업 | 비고 |
+|---|---|---|
+| 1 | `templates/data/influencers.csv` 양식 + `templates/config.yaml`에 `influencer` 블록 추가 | 새 사업은 템플릿 복사로 시작 |
+| 2 | `skills/influencer/SKILL.md` 신설 | 상태 전이·추적 체크·주간 선정 절차 |
+| 3 | 일일 추적 체크를 main 루틴 06:40 수집 단계에 편입 | 비치명. 명단 없으면 "협업 명단 없음"으로 종료 |
+| 4 | 주간 선정 + 제안 초안을 weekly_calendar 트리거에 편입 | 비치명. `max_outreach_per_week` 상한 준수 |
+| 5 | 대시보드 설정 화이트리스트에 `influencer.*` 추가 | 20.10 4차 |
+
+- 각 단계는 검수 통과 후 다음 단계로 진행한다 (HW 원칙).
+- 3~4는 명단이 있는 사업에서 검증한다. 명단이 없으면 no-op이다.

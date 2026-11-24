@@ -6,7 +6,7 @@
 
 사업별 데이터는 `businesses/<slug>/`에 격리되며, 코어 업데이트는 `git pull`로 받는다.
 
-> **상태**: SPEC v1.11.0 기반 구현 (스킬 8종·플레이북 3종·실행 껍데기 6종·웹 대시보드 8화면).
+> **상태**: SPEC v1.12.0 기반 구현 (스킬 9종·플레이북 3종·실행 껍데기 6종·웹 대시보드 8화면).
 > 드라이런 검증 완료, 30분 engagement cron은 비활성(opt-in) 유지 중.
 > 실제 발행 전에는 반드시 `--dry-run`으로 파이프라인을 검증할 것.
 
@@ -25,13 +25,17 @@
 - **Pre-launch 트랙**: 사업 단계(아이디어/준비중/사전예약중/운영중)에 따라 파이프라인 자동 분기.
   런칭 전 수요 검증·빌드인퍼블릭·사전예약 모집 지원 (SPEC 1.7)
 - **시장조사** (`skills/customer-research`): 고객 질문·경쟁사 동향 수집, 광고 소구점 도출, 주 1회 AEO(브랜드 언급 여부) 측정
-- **콘텐츠 제작** (`skills/content`): 블로그·Threads·카드뉴스·숏폼 4종 파이프라인 (기획 → 초안 → 1차 규칙 검수 → 2차 AI 검수 → 발행 큐)
+- **콘텐츠 제작** (`skills/content`): 블로그·Threads·카드뉴스·숏폼 4종 파이프라인 (기획 → 초안 → 1차 규칙 검수 → 2차 AI 검수 → 발행 큐).
+  각 항목은 목적(인지도/전환/신뢰)을 먼저 선언하고 목적별 지표로 성과를 판단한다 (SPEC 6.1).
+  AI 표기는 `content.ai_attribution` 옵션으로 켜고 끌 수 있다 (기본값 off, SPEC 6.7)
 - **채널 발행**
   - 네이버 블로그: Aside 브라우저 자동화 (`playbooks/` 작업 지시서), 09:00–11:00 균등 랜덤 발행, 일 1건 상한
   - Threads / Instagram / YouTube: 공식 API
   - 네이버 플레이스·스마트스토어: 미구현 (채널 추가 절차는 `AGENTS.md` 참조)
 - **Meta 광고** (`skills/ads`): 성과 조회·분석 + 캠페인 초안 생성. 집행은 config `meta_ads.mode=auto` opt-in에서만 (기본값 draft_only)
-- **에셋 생성**: Higgsfield로 숏폼 영상·카드뉴스 배경 생성 → `assets/` 저장
+- **에셋 생성**: Higgsfield로 숏폼 영상·카드뉴스 배경 생성 → `assets/` 저장. 월 상한 없음 (v1.12.0 폐지, 대표는 원하면 상한 설정 가능)
+- **인플루언서 협업** (`skills/influencer`): 크리에이터 선정(목적→정량 필터) · 제안 초안 · 추적 장부(`state/outreach.jsonl`).
+  일일 추적 체크(기한 초과 알림) + 주간 선정. 기본 비활성(opt-in), 제안은 초안까지만 (SPEC 22장)
 - **고객 응대** (`skills/customer-care`): FAQ 근거 답변 초안 작성. 발송은 config `customer_care.mode=auto_send` opt-in에서만 (기본값 draft_only)
 - **분석·리포트** (`skills/analytics`): 일간 성과 분석, 아침 리포트 생성·텔레그램 발송.
   매주 일요일에는 주간 성과 요약(상위 성과 콘텐츠 3건 + 유지/중단/수정/실험 결정)을 만들어 다음 주 콘텐츠 기획의 출발점으로 삼는다 (SPEC 12.2a, 위너 루프)
@@ -82,13 +86,13 @@ bin/run.sh --business $slug --dry-run
 ## 리포 구조
 
 ```
-SPEC.md                  상세 스펙 v1.11.0 (구현의 정본)
+SPEC.md                  상세 스펙 v1.12.0 (구현의 정본)
 README.md                이 문서
 ARCHITECTURE.md          모듈·데이터 플로우·상태 모델·멀티사업 설계·설계 원칙
 AGENTS.md                이 리포에서 일하는 AI 에이전트용 지침
 dashboard/               웹 대시보드 (server.py + static/). 표준 라이브러리만으로 동작
 docs/                    거버넌스·호환성·온보딩·대시보드 문서 (agent-compatibility.md 등)
-skills/                  스킬 8종. 에이전트가 읽고 실행하는 역할 정의서
+skills/                  스킬 9종. 에이전트가 읽고 실행하는 역할 정의서
 playbooks/               Aside용 작업 지시서 3종. 코드가 아닌 Markdown
 bin/                     실행 껍데기 6종 (run / retry / kill / resume / dlq / engagement). 상태관리만 담당
 templates/               새 사업 시작용 템플릿 (config.yaml, knowledge 11종, 캘린더, secrets 양식)

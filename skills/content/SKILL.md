@@ -66,6 +66,11 @@ description: 콘텐츠 마케터. 주간 캘린더 또는 목표 한 줄에서 �
    90일 후 압축 아카이브, 재사용 에셋은 `businesses/<slug>/assets/library/`에 복사.
 9. **숏폼 핸드오프:** Higgsfield MCP로 생성 → 파일 다운로드 → `businesses/<slug>/assets/YYYY-MM-DD/` 저장
    → YouTube 업로드용으로 큐에 등록. 자막 편집은 별도 도구에서.
+10. **AI 표기는 config `content.ai_attribution`으로 결정한다 (v1.12.0).**
+    `on`이면 AI로 만든 콘텐츠에 `businesses/<slug>/knowledge/06_브랜드보이스.md`의 "AI 표기"
+    문구를 붙인다. 문구가 비어 있으면 기본 문구 "이 콘텐츠는 AI의 도움을 받아 제작되었습니다."를 쓴다.
+    표기 위치는 채널별 포맷 가이드의 끝(블로그 글 말미·스레드 마지막 포스트·카드뉴스 마지막 장·숏폼 설명란).
+    `off`(기본값)이면 표기를 붙이지 않는다. 품질 게이트 2차 검수에서 표기 여부를 확인한다.
 
 ## 사업 단계별 톤
 `businesses/<slug>/knowledge/00_사업개요.md`의 `사업 단계`에 따라 톤을 조정한다
@@ -75,7 +80,7 @@ description: 콘텐츠 마케터. 주간 캘린더 또는 목표 한 줄에서 �
   미완성의 공개는 허용하되, 허위 과장(미출시 기능을 출시된 것처럼)은 금지한다.
 - `사전예약중`: 예약 유도 CTA를 포함한다 (랜딩 페이지·대기리스트 등록 경로 안내).
   품질 게이트와 근거 대조 규칙은 운영중과 동일하게 적용한다.
-- `운영중`: 기존 규칙 그대로 (위 핵심 규칙 1–9).
+- `운영중`: 기존 규칙 그대로 (위 핵심 규칙 1–10).
 
 ## 참조 파일
 - `references/blog_format.md` / `threads_format.md` / `cardnews_format.md` / `shorts_format.md`

@@ -25,7 +25,7 @@ channels:
 
 budgets:
   meta_daily_cap_krw: 30000       # 미러. 정본: knowledge/08_승인기준.md
-  higgsfield_monthly_krw: 50000   # 미러
+  higgsfield_monthly_krw: null    # 상한 없음 (v1.12.0 폐지)
 
 customer_care:
   mode: "draft_only"              # draft_only | auto_send

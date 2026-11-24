@@ -70,7 +70,7 @@ engagement 트리거는 `skills/engagement/SKILL.md`의 시작 절차를 따른�
 | 시각 | 단계 | 담당 스킬 | 타임아웃 | 치명 |
 |---|---|---|---|---|
 | 06:30 | 트리거 시작 공통 절차 (락 → KILL 확인 → 알림 큐 drain → 헬스체크 + `health.json` 기록) | — | 10분 | 치명 |
-| 06:40 | 수집: Meta MCP 성과(ads 스킬에 위임), 전날 발행 콘텐츠 반응(채널별), 미답변 문의 | ads · customer-research · analytics · customer-care | 15분 | 비치명 |
+| 06:40 | 수집: Meta MCP 성과(ads 스킬에 위임), 전날 발행 콘텐츠 반응(채널별), 미답변 문의, 인플루언서 추적 체크(§22.5) | ads · customer-research · analytics · customer-care · influencer | 15분 | 비치명 |
 | 07:00 | 분석 리포트 생성 | analytics | 15분 | 비치명 |
 | 07:20 | 콘텐츠 제작 (블로그·스레드·카드뉴스·숏폼) | content | 40분 | 비치명 |
 | 08:00 | 품질 게이트 (1차 규칙 → 2차 AI) | content | 20분 | 비치명 |
@@ -105,6 +105,8 @@ engagement 트리거는 `skills/engagement/SKILL.md`의 시작 절차를 따른�
    읽고, 지난주에 잘된 주제·형식·소구점을 다음 주 기획의 출발점으로 삼는다 (SPEC 6.1 위너 루프).
    각 항목에 목적(인지도/전환/신뢰)과 판단 지표를 선언한다.
 3. `businesses/<slug>/config.yaml`의 `channels.<채널>.max_per_day` 빈도 상한 준수
+4. 인플루언서 주간 선정 + 제안 초안: influencer 스킬이 지난주 답장 건의 정성 분석과
+   이번 주 신규 연락 초안(`max_outreach_per_week` 상한)을 만든다 (SPEC 22.6)
 
 ## 출력 (산출물 경로)
 - `businesses/<slug>/reports/daily/YYYY-MM-DD.md` — 아침 리포트
